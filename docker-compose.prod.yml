@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # --- Frontend ---
@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
       args:
         - REACT_APP_API_BASE_URL=https://api-alrohomi.smartagency-ye.com
-    container_name: alrhomi-frontend
+    container_name: almarohomi-frontend
     restart: unless-stopped
     networks:
       - web-network
@@ -19,13 +19,13 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: production
-    container_name: alrhomi-backend
+    container_name: almarohomi-backend
     restart: unless-stopped
     environment:
       - NODE_ENV=production
       - PORT=5000
       - MONGODB_URI=${MONGODB_URI}
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://almarohomi-redis:6379
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-15m}
       - REFRESH_TOKEN_EXPIRES_IN=${REFRESH_TOKEN_EXPIRES_IN:-7d}
@@ -43,7 +43,7 @@ services:
   # --- Redis (داخلي) ---
   redis:
     image: redis:7-alpine
-    container_name: alrhomi-redis
+    container_name: almarohomi-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
