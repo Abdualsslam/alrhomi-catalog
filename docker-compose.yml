@@ -7,7 +7,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - REACT_APP_API_BASE_URL=https://api-alrohomi.smartagency-ye.com
+        - REACT_APP_API_BASE_URL=https://api-almarohomi.smartagency-ye.com
     container_name: almarohomi-frontend
     restart: unless-stopped
     networks:
