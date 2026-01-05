@@ -141,3 +141,29 @@ export interface CreateUserRequest {
   password?: string;
   role?: string;
 }
+
+// Folder Navigation Types
+export interface FolderQueryDto {
+  categoryId?: string;
+  productId?: string;
+}
+
+export interface FolderItem {
+  id: string;
+  name: string;
+  subtitle?: string;
+  type: 'folder' | 'file';
+  isLeaf?: boolean;
+  special?: boolean;
+  // خصائص خاصة بالملفات (الصور)
+  thumbnailUrl?: string;
+  originalUrl?: string;
+}
+
+export interface FolderStructureResponse {
+  type: 'folders' | 'files';
+  level?: 'category' | 'product';
+  currentPath?: string;
+  items: FolderItem[];
+}
+

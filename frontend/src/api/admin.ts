@@ -12,6 +12,8 @@ import {
   CreateProductRequest,
   UpdateProductRequest,
   UploadImageResponse,
+  FolderQueryDto,
+  FolderStructureResponse,
 } from "../types/api.types";
 import {
   User,
@@ -82,6 +84,14 @@ export const uploadImage = async (
 ): Promise<UploadImageResponse> => {
   return apiClient.post<UploadImageResponse>("/images/upload", formData, {
     headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
+export const fetchFolderStructure = async (
+  query: FolderQueryDto = {}
+): Promise<FolderStructureResponse> => {
+  return apiClient.get<FolderStructureResponse>("/images/folders", {
+    params: query,
   });
 };
 

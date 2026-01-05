@@ -8,6 +8,11 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
+  CardActionArea, // New
+  Breadcrumbs, // New
+  Link, // New
+  alpha, // New
+  Stack, // New
   DialogTitle,
   Grid,
   IconButton,
@@ -39,6 +44,9 @@ import {
   CheckCircle as CheckCircleIcon,
   Image as ImageIcon,
   Link as LinkIcon,
+  Folder as FolderIcon,
+  NavigateNext as NavigateNextIcon,
+  Home as HomeIcon,
 } from "@mui/icons-material";
 import {
   fetchProducts,
@@ -47,9 +55,10 @@ import {
   deleteProduct,
   fetchCategories,
   fetchImages,
+  fetchFolderStructure, // New Import
 } from "../../api/admin";
 import { Category } from "../../types/models.types";
-
+import { FolderItem, FolderQueryDto } from "../../types/api.types"; // New Import
 // Local interfaces for this component
 interface FormVariant {
   name: string;
@@ -116,7 +125,11 @@ interface QueryState {
   search: string;
   assigned?: string;
 }
-
+interface NavigationState {
+  categoryId: string | null;
+  productId: string | null;
+  breadcrumbs: { id: string | null; name: string; type: 'root' | 'category' | 'product' }[];
+}
 const getDefaultForm = (): ProductForm => ({
   productName: "",
   productCode: "",
@@ -128,7 +141,40 @@ const getDefaultForm = (): ProductForm => ({
   tags: [],
   variants: [],
 });
-
+// مكون فرعي لعرض المجلد (يمكن وضعه في ملف منفصل لاحقاً)
+function FolderCard({ item, onClick }: { item: FolderItem; onClick: () => void }) {
+  const theme = useTheme();
+  return (
+    <Card
+      elevation={0}
+      sx={{
+        border: `1px solid ${theme.palette.divider}`,
+        borderRadius: 3,
+        backgroundColor: theme.palette.background.paper,
+        transition: 'transform 0.2s, box-shadow 0.2s',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          borderColor: theme.palette.primary.main,
+          boxShadow: theme.shadows[2],
+        }
+      }}
+    >
+      <CardActionArea onClick={onClick} sx={{ p: 2 }}>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <FolderIcon sx={{ color: theme.palette.primary.main, fontSize: 40 }} />
+          <Box>
+            <Typography variant="subtitle2" fontWeight="bold" noWrap>
+              {item.name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {item.subtitle}
+            </Typography>
+          </Box>
+        </Stack>
+      </CardActionArea>
+    </Card>
+  );
+}
 export default function ProductManagement() {
   const theme = useTheme();
   const [products, setProducts] = useState<ProductItem[]>([]);
@@ -145,6 +191,12 @@ export default function ProductManagement() {
   const [selectedImages, setSelectedImages] = useState<ImageItem[]>([]);
   const [selectedImagesLoading, setSelectedImagesLoading] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
+
+  // هل نعرض مجلدات أم ملفات؟
+  const [libraryViewType, setLibraryViewType] = useState<'folders' | 'files'>('folders');
+  const [folderItems, setFolderItems] = useState<FolderItem[]>([]); // قائمة المجلدات
+
+  // تعديل: imageLibrary سيستخدم الآن لتخزين الصور فقط عند عرض الملفات
   const [imageLibrary, setImageLibrary] = useState<LibraryState<ImageItem>>({
     items: [],
     loading: false,
@@ -179,6 +231,11 @@ export default function ProductManagement() {
     page: 0,
     rowsPerPage: 6,
     search: "",
+  });
+  const [navState, setNavState] = useState<NavigationState>({
+    categoryId: null,
+    productId: null,
+    breadcrumbs: [{ id: null, name: 'الرئيسية', type: 'root' }],
   });
 
   const loadProducts = useCallback(async () => {
@@ -218,6 +275,94 @@ export default function ProductManagement() {
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+
+  // دالة لجلب المجلدات أو الصور بناءً على المسار الحالي
+  const loadFolderOrImages = useCallback(async () => {
+    if (!imageDialogOpen) return;
+
+    // إذا كان هناك بحث، نستخدم البحث القديم (Flat List)
+    if (imageLibraryQuery.search) {
+      setLibraryViewType('files');
+      // ... (نفس منطق البحث القديم باستخدام fetchImages)
+      // ...
+      return;
+    }
+
+    setImageLibrary(prev => ({ ...prev, loading: true }));
+
+    try {
+      const query: FolderQueryDto = {};
+      if (navState.categoryId) query.categoryId = navState.categoryId;
+      if (navState.productId) query.productId = navState.productId;
+
+      const res = await fetchFolderStructure(query);
+
+      if (res.type === 'folders') {
+        setFolderItems(res.items);
+        setLibraryViewType('folders');
+      } else {
+        // تحويل الصور القادمة من المجلد إلى الشكل المناسب
+        const images = res.items.map(item => ({
+          _id: item.id,
+          productName: item.name,
+          originalUrl: item.originalUrl || item.thumbnailUrl,
+          watermarkedUrl: item.thumbnailUrl
+        }));
+        setImageLibrary(prev => ({
+          ...prev,
+          items: images as any,
+          total: images.length // ملاحظة: الـ Folder API حالياً يرجع الكل، قد تحتاج لعمل Paging لاحقاً
+        }));
+        setLibraryViewType('files');
+      }
+    } catch (err) {
+      console.error("Failed to load folder structure", err);
+    } finally {
+      setImageLibrary(prev => ({ ...prev, loading: false }));
+    }
+  }, [imageDialogOpen, navState, imageLibraryQuery.search]);
+
+  // استبدل useEffect القديم الخاص بـ loadImageLibrary بهذا:
+  useEffect(() => {
+    loadFolderOrImages();
+  }, [loadFolderOrImages]);
+
+
+  // --- دوال التحكم في التنقل (مثل ImageManagement) ---
+  const handleFolderClick = (item: FolderItem) => {
+    // حالة خاصة: المجلد الافتراضي للصور غير المرتبطة
+    if (item.id === 'unassigned') {
+      // هنا يمكنك توجيه الكود لجلب الصور غير المرتبطة فقط
+      // سيتطلب ذلك تعديلاً بسيطاً لضبط الفلتر
+      return;
+    }
+
+    if (navState.categoryId === null) {
+      setNavState(prev => ({
+        categoryId: item.id,
+        productId: null,
+        breadcrumbs: [...prev.breadcrumbs, { id: item.id, name: item.name, type: 'category' }]
+      }));
+    } else if (navState.productId === null) {
+      setNavState(prev => ({
+        ...prev,
+        productId: item.id,
+        breadcrumbs: [...prev.breadcrumbs, { id: item.id, name: item.name, type: 'product' }]
+      }));
+    }
+  };
+
+  const handleBreadcrumbClick = (index: number) => {
+    const targetCrumb = navState.breadcrumbs[index];
+    const newBreadcrumbs = navState.breadcrumbs.slice(0, index + 1);
+
+    if (targetCrumb.type === 'root') {
+      setNavState({ categoryId: null, productId: null, breadcrumbs: newBreadcrumbs });
+    } else if (targetCrumb.type === 'category') {
+      setNavState({ categoryId: targetCrumb.id, productId: null, breadcrumbs: newBreadcrumbs });
+    }
+    setImageLibraryQuery(prev => ({ ...prev, search: "" })); // تصفير البحث
+  };
 
   useEffect(() => {
     (async () => {
@@ -421,10 +566,6 @@ export default function ProductManagement() {
       rowsPerPage: parseInt(event.target.value, 10),
       page: 0,
     }));
-  };
-
-  const handleImageFilterChange = (value: string) => {
-    setImageLibraryQuery((prev) => ({ ...prev, assigned: value, page: 0 }));
   };
 
   const openImageDialog = () => {
@@ -1586,6 +1727,7 @@ export default function ProductManagement() {
         </DialogActions>
       </Dialog>
 
+      {/* Image Library Dialog with Folder Navigation */}
       <Dialog
         open={imageDialogOpen}
         onClose={closeImageDialog}
@@ -1600,195 +1742,147 @@ export default function ProductManagement() {
             borderBottom: `1px solid ${theme.palette.divider}`,
           }}
         >
-          <Typography variant="h6" >
-            مكتبة الصور
-          </Typography>
+          <Typography variant="h6">مكتبة الصور</Typography>
           <IconButton onClick={closeImageDialog}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ pt: 3 }}>
-          <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <TextField
-                fullWidth
-                placeholder="ابحث باسم المنتج، الكود أو الوسوم..."
-                value={imageLibraryQuery.search}
-                onChange={handleImageSearchChange}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                {[
-                  { value: "unassigned", label: "صور متاحة" },
-                  { value: "assigned", label: "صور مرتبطة" },
-                  { value: "all", label: "الكل" },
-                ].map((option) => (
-                  <Chip
-                    key={option.value}
-                    label={option.label}
-                    color={imageLibraryQuery.assigned === option.value ? "primary" : "default"}
-                    variant={imageLibraryQuery.assigned === option.value ? "filled" : "outlined"}
-                    onClick={() => handleImageFilterChange(option.value)}
-                  />
-                ))}
-              </Box>
-            </Grid>
-          </Grid>
 
-          {imageLibrary.loading && imageLibrary.items.length === 0 ? (
+        <DialogContent sx={{ pt: 3, minHeight: 500 }}>
+          {/* شريط البحث */}
+          <TextField
+            fullWidth
+            placeholder="ابحث عن صورة مباشرة (سيتجاهل المجلدات)..."
+            value={imageLibraryQuery.search}
+            onChange={handleImageSearchChange}
+            sx={{ mb: 2 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          {/* شريط المسار (Breadcrumbs) */}
+          {!imageLibraryQuery.search && (
+            <Paper variant="outlined" sx={{ p: 1.5, mb: 3, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
+              <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />}>
+                {navState.breadcrumbs.map((crumb, index) => {
+                  const isLast = index === navState.breadcrumbs.length - 1;
+                  return isLast ? (
+                    <Typography key={index} color="text.primary" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }}>
+                      {crumb.name}
+                    </Typography>
+                  ) : (
+                    <Link
+                      key={index}
+                      component="button"
+                      underline="hover"
+                      color="inherit"
+                      onClick={() => handleBreadcrumbClick(index)}
+                      sx={{ display: 'flex', alignItems: 'center' }}
+                    >
+                      {index === 0 && <HomeIcon sx={{ mr: 0.5, fontSize: 20 }} />}
+                      {crumb.name}
+                    </Link>
+                  );
+                })}
+              </Breadcrumbs>
+            </Paper>
+          )}
+
+          {/* منطقة العرض */}
+          {imageLibrary.loading ? (
             <Grid container spacing={2}>
-              {Array.from({ length: imageLibraryQuery.rowsPerPage }).map((_, idx) => (
-                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={idx}>
-                  <Skeleton variant="rectangular" height={200} sx={{ borderRadius: 3 }} />
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={i}>
+                  <Skeleton variant="rectangular" height={150} sx={{ borderRadius: 3 }} />
                 </Grid>
               ))}
             </Grid>
-          ) : imageLibrary.items.length === 0 ? (
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 4,
-                textAlign: "center",
-                borderStyle: "dashed",
-                color: "text.secondary",
-              }}
-            >
-              <PhotoLibraryIcon sx={{ fontSize: 48, mb: 1 }} />
-              <Typography variant="h6" >
-                لا توجد صور مطابقة
-              </Typography>
-              <Typography variant="body2">
-                جرّب تعديل شروط البحث أو تغيير الفلتر أعلاه.
-              </Typography>
-            </Paper>
-          ) : (
+          ) : libraryViewType === 'folders' && !imageLibraryQuery.search ? (
+            // عرض المجلدات
             <Grid container spacing={2}>
-              {imageLibrary.items.map((image) => {
-                const url = image.watermarkedUrl || image.originalUrl || "";
-                const isSelected = selectedImageIdSet.has(image._id);
-                const isAssignedToAnother =
-                  image.productId &&
-                  (!editingProduct || image.productId !== editingProduct._id);
-                const isSelectable = !isAssignedToAnother || isSelected;
-                return (
-                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={image._id}>
-                    <Card
-                      onClick={() => {
-                        if (!isSelectable) return;
-                        toggleImageSelection(image);
-                      }}
-                      sx={{
-                        borderRadius: 3,
-                        cursor: isSelectable ? "pointer" : "not-allowed",
-                        opacity: isSelectable ? 1 : 0.55,
-                        position: "relative",
-                      }}
-                    >
-                      <Box sx={{ position: "relative", pt: "56.25%" }}>
-                        {url ? (
-                          <Box
-                            component="img"
-                            src={url}
-                            alt={String(image.productName || image.productCode || image._id || "")}
-                            sx={{
-                              position: "absolute",
-                              top: 0,
-                              left: 0,
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover",
-                              borderTopLeftRadius: 12,
-                              borderTopRightRadius: 12,
-                            }}
-                          />
-                        ) : (
-                          <Box
-                            sx={{
-                              position: "absolute",
-                              top: 0,
-                              left: 0,
-                              width: "100%",
-                              height: "100%",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              color: "text.secondary",
-                            }}
-                          >
-                            <ImageIcon fontSize="large" />
-                          </Box>
-                        )}
-                        {isSelected && (
-                          <CheckCircleIcon
-                            color="success"
-                            sx={{
-                              position: "absolute",
-                              top: 12,
-                              right: 12,
-                              backgroundColor: "background.paper",
-                              borderRadius: "50%",
-                            }}
-                          />
-                        )}
-                      </Box>
-                      <Box sx={{ p: 2 }}>
-                        <Typography >
-                          {String(image.productName || "صورة بدون اسم")}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                          {String(image.productCode || image._id)}
-                        </Typography>
-                        {Boolean(isAssignedToAnother) && (
-                          <Chip
-                            label="مربوطة بمنتج آخر"
-                            color="warning"
-                            size="small"
-                          />
-                        )}
-                      </Box>
-                    </Card>
-                  </Grid>
-                );
-              })}
+              {folderItems.map(item => (
+                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item.id}>
+                  <FolderCard item={item} onClick={() => handleFolderClick(item)} />
+                </Grid>
+              ))}
+              {folderItems.length === 0 && (
+                <Grid size={{ xs: 12 }}>
+                  <Typography textAlign="center" color="text.secondary" py={5}>
+                    هذا المجلد فارغ
+                  </Typography>
+                </Grid>
+              )}
+            </Grid>
+          ) : (
+            // عرض الصور (الملفات)
+            <Grid container spacing={2}>
+              {imageLibrary.items.length === 0 ? (
+                <Grid size={{ xs: 12 }}>
+                  <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderStyle: 'dashed' }}>
+                    <ImageIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                    <Typography>لا توجد صور هنا</Typography>
+                  </Paper>
+                </Grid>
+              ) : (
+                imageLibrary.items.map((image) => {
+                  const url = image.watermarkedUrl || image.originalUrl || "";
+                  const isSelected = selectedImageIdSet.has(image._id);
+                  const isAssignedToAnother = image.productId && (!editingProduct || image.productId !== editingProduct._id);
+                  const isSelectable = !isAssignedToAnother || isSelected;
+
+                  return (
+                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={image._id}>
+                      <Card
+                        onClick={() => {
+                          if (!isSelectable) return;
+                          toggleImageSelection(image);
+                        }}
+                        sx={{
+                          borderRadius: 3,
+                          cursor: isSelectable ? "pointer" : "not-allowed",
+                          opacity: isSelectable ? 1 : 0.55,
+                          position: "relative",
+                          border: isSelected ? `2px solid ${theme.palette.primary.main}` : 'none'
+                        }}
+                      >
+                        <Box sx={{ position: "relative", pt: "56.25%" }}>
+                          <Box component="img" src={url} sx={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                          {isSelected && <CheckCircleIcon color="primary" sx={{ position: "absolute", top: 8, right: 8, bgcolor: 'white', borderRadius: '50%' }} />}
+                        </Box>
+                        <Box sx={{ p: 1.5 }}>
+                          <Typography variant="body2" noWrap>{image.productName || 'صورة'}</Typography>
+                        </Box>
+                      </Card>
+                    </Grid>
+                  );
+                })
+              )}
             </Grid>
           )}
 
-          <TablePagination
-            component="div"
-            count={imageLibrary.total}
-            page={imageLibraryQuery.page}
-            onPageChange={handleImagePageChange}
-            rowsPerPage={imageLibraryQuery.rowsPerPage}
-            onRowsPerPageChange={handleImageRowsChange}
-            rowsPerPageOptions={[6, 12, 24]}
-            labelRowsPerPage="صور لكل صفحة"
-            labelDisplayedRows={({ from, to, count }) => `${from}-${to} من ${count}`}
-            sx={{ mt: 2 }}
-          />
+          {/* Pagination */}
+          {libraryViewType === 'files' && imageLibrary.total > 0 && (
+            <TablePagination
+              component="div"
+              count={imageLibrary.total}
+              page={imageLibraryQuery.page}
+              onPageChange={handleImagePageChange}
+              rowsPerPage={imageLibraryQuery.rowsPerPage}
+              onRowsPerPageChange={handleImageRowsChange}
+              labelRowsPerPage="صور لكل صفحة"
+            />
+          )}
         </DialogContent>
-        <DialogActions
-          sx={{
-            borderTop: `1px solid ${theme.palette.divider}`,
-            py: 2,
-            px: 3,
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-          }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            تم اختيار {selectedImages.length} {selectedImages.length === 1 ? "صورة" : "صور"} لهذا
-            المنتج.
-          </Typography>
-          <Button onClick={closeImageDialog} sx={{ borderRadius: 3 }}>
-            تم
+
+        <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Button onClick={closeImageDialog}>إغلاق</Button>
+          <Button variant="contained" onClick={closeImageDialog}>
+            تأكيد الاختيار ({selectedImages.length})
           </Button>
         </DialogActions>
       </Dialog>

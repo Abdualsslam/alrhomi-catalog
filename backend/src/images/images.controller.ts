@@ -25,6 +25,7 @@ import * as path from 'path';
 import { ImagesService } from './images.service';
 import { UploadImageDto } from './dto/upload-image.dto';
 import { ImageQueryDto } from './dto/image-query.dto';
+import { FolderQueryDto } from './dto/folder-query.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -34,7 +35,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class ImagesController {
-  constructor(private readonly imagesService: ImagesService) {}
+  constructor(private readonly imagesService: ImagesService) { }
 
   @Post('upload')
   @UseInterceptors(
@@ -112,6 +113,16 @@ export class ImagesController {
   })
   async getQueueStatus() {
     return this.imagesService.getQueueStatus();
+  }
+
+  @Get('folders')
+  @ApiOperation({ summary: 'تصفح الصور بنظام المجلدات' })
+  @ApiResponse({
+    status: 200,
+    description: 'هيكل المجلدات او الملفات',
+  })
+  async getFolders(@Query() query: FolderQueryDto) {
+    return this.imagesService.getFolderStructure(query);
   }
 
   @Get(':id/download-url')

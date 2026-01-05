@@ -2,8 +2,10 @@
 import { useCallback, useEffect, useMemo, useState, ChangeEvent } from "react";
 import {
   Box,
+  Breadcrumbs,
   Button,
   Card,
+  CardActionArea,
   CardContent,
   CardMedia,
   Chip,
@@ -16,6 +18,7 @@ import {
   Grid,
   IconButton,
   InputAdornment,
+  Link,
   Paper,
   Skeleton,
   Stack,
@@ -35,16 +38,21 @@ import {
   CloudUpload as UploadIcon,
   Close as CloseIcon,
   Delete as DeleteIcon,
+  Folder as FolderIcon,
+  Home as HomeIcon,
+  NavigateNext as NavigateNextIcon,
   Search as SearchIcon,
   ZoomIn as ZoomInIcon,
 } from "@mui/icons-material";
 import {
   deleteImage,
   fetchImages,
+  fetchFolderStructure,
   toggleWatermark,
   uploadImage,
 } from "../../api/admin";
 import { Image } from "../../types/models.types";
+import { FolderQueryDto, FolderItem } from "../../types/api.types";
 
 // Extended Image type with additional properties used in this component
 interface ImageData extends Omit<Image, 'uploadedBy'> {
@@ -144,6 +152,64 @@ interface ImagePreviewDialogProps {
   isMobile: boolean;
   onClose: () => void;
 }
+
+// --- مكون بطاقة المجلد ---
+interface FolderCardProps {
+  item: FolderItem;
+  onClick: () => void;
+}
+
+function FolderCard({ item, onClick }: FolderCardProps) {
+  const theme = useTheme();
+  return (
+    <Card
+      elevation={0}
+      sx={{
+        border: `1px solid ${theme.palette.divider}`,
+        borderRadius: 4,
+        transition: 'all 0.2s',
+        backgroundColor: theme.palette.background.paper,
+        '&:hover': {
+          borderColor: theme.palette.primary.main,
+          transform: 'translateY(-4px)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+        }
+      }}
+    >
+      <CardActionArea onClick={onClick} sx={{ p: 2 }}>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 3,
+              backgroundColor: alpha(theme.palette.primary.main, 0.1),
+              color: theme.palette.primary.main,
+              display: 'flex',
+            }}
+          >
+            <FolderIcon fontSize="large" />
+          </Box>
+          <Box>
+            <Typography variant="subtitle1" fontWeight="bold" noWrap>
+              {item.name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {item.subtitle}
+            </Typography>
+          </Box>
+        </Stack>
+      </CardActionArea>
+    </Card>
+  );
+}
+
+// --- حالة التصفح الهرمي ---
+interface NavigationState {
+  categoryId: string | null;
+  productId: string | null;
+  breadcrumbs: { id: string | null; name: string; type: 'root' | 'category' | 'product' }[];
+}
+
 
 function PageHeader({ isMobile, onAdd }: PageHeaderProps) {
   return (
@@ -792,51 +858,126 @@ export default function ImageManagement() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
+  // --- State ---
+  // 1. حالة التصفح (أين أنا الآن؟)
+  const [navState, setNavState] = useState<NavigationState>({
+    categoryId: null,
+    productId: null,
+    breadcrumbs: [{ id: null, name: 'الرئيسية', type: 'root' }],
+  });
+
+  // 2. البيانات المعروضة
+  const [folderItems, setFolderItems] = useState<FolderItem[]>([]);
   const [images, setImages] = useState<ImageData[]>([]);
+  const [viewType, setViewType] = useState<'folders' | 'files'>('folders');
   const [totalCount, setTotalCount] = useState(0);
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<UploadForm>({ productId: "", file: null });
+
+  // 3. حالات التحميل والبحث والصفحة
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(8);
+
+  // 4. الحوارات
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<UploadForm>({ productId: "", file: null });
   const [uploading, setUploading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<ImageData | null>(null);
 
-  const loadImages = useCallback(async () => {
+  // --- دالة التحميل الرئيسية ---
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchImages({
-        page: page + 1,
-        limit: rowsPerPage,
-        search,
-      });
-      // fetchImages returns PaginatedResponse<Image> directly (already unwrapped)
-      const items = res.items;
-      const totalItems = res.totalItems || res.total || 0;
-
-      if (items.length === 0 && totalItems > 0 && page > 0) {
-        setPage((prev) => Math.max(prev - 1, 0));
+      // إذا كان هناك بحث، نبحث global في الصور
+      if (search) {
+        const res = await fetchImages({
+          page: page + 1,
+          limit: rowsPerPage,
+          search,
+        });
+        setImages(res.items as ImageData[]);
+        setTotalCount(res.totalItems || res.total || 0);
+        setViewType('files');
         return;
       }
 
-      setImages(items as ImageData[]);
-      setTotalCount(totalItems);
+      // تحميل هيكل المجلدات بناءً على المكان الحالي
+      const query: FolderQueryDto = {};
+      if (navState.categoryId) query.categoryId = navState.categoryId;
+      if (navState.productId) query.productId = navState.productId;
+
+      const res = await fetchFolderStructure(query);
+
+      if (res.type === 'folders') {
+        setFolderItems(res.items);
+        setViewType('folders');
+      } else {
+        // تحويل عناصر المجلدات إلى هيكل الصور
+        setImages(res.items.map(item => ({
+          _id: item.id,
+          originalUrl: item.originalUrl || '',
+          watermarkedUrl: item.thumbnailUrl,
+          productName: item.name,
+          category: '',
+          tags: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })) as ImageData[]);
+        setViewType('files');
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [page, rowsPerPage, search]);
+  }, [navState, search, page, rowsPerPage]);
 
   useEffect(() => {
-    loadImages();
-  }, [loadImages]);
+    loadData();
+  }, [loadData]);
 
+  // --- دالة التعامل مع النقر على مجلد ---
+  const handleFolderClick = (item: FolderItem) => {
+    if (item.id === 'unassigned') {
+      // مجلد خاص للصور غير المرتبطة
+      return;
+    }
+
+    if (navState.categoryId === null) {
+      // نحن في الجذر، وضغطنا على تصنيف
+      setNavState(prev => ({
+        categoryId: item.id,
+        productId: null,
+        breadcrumbs: [...prev.breadcrumbs, { id: item.id, name: item.name, type: 'category' }]
+      }));
+    } else if (navState.productId === null) {
+      // نحن داخل تصنيف، وضغطنا على منتج
+      setNavState(prev => ({
+        ...prev,
+        productId: item.id,
+        breadcrumbs: [...prev.breadcrumbs, { id: item.id, name: item.name, type: 'product' }]
+      }));
+    }
+  };
+
+  // --- دالة التنقل عبر Breadcrumbs ---
+  const handleBreadcrumbClick = (index: number) => {
+    const targetCrumb = navState.breadcrumbs[index];
+    const newBreadcrumbs = navState.breadcrumbs.slice(0, index + 1);
+
+    if (targetCrumb.type === 'root') {
+      setNavState({ categoryId: null, productId: null, breadcrumbs: newBreadcrumbs });
+    } else if (targetCrumb.type === 'category') {
+      setNavState({ categoryId: targetCrumb.id, productId: null, breadcrumbs: newBreadcrumbs });
+    }
+    setSearch("");
+  };
+
+  // --- معالجات الأحداث ---
   const openDialog = () => {
-    setForm({ productId: "", file: null });
+    setForm({ productId: navState.productId || "", file: null });
     setOpen(true);
   };
 
@@ -856,36 +997,12 @@ export default function ImageManagement() {
 
     const fd = new FormData();
     fd.append("file", form.file);
+    if (form.productId) fd.append("productId", form.productId);
 
     try {
-      const res = await uploadImage(fd);
-      // uploadImage returns UploadImageResponse directly (already unwrapped)
-      const { jobId, originalUrl } = res;
-
-      const newImage: ImageData = {
-        _id: jobId || '',
-        jobId,
-        originalUrl: originalUrl || '',
-        watermarkedUrl: undefined,
-        status: "queued",
-        progress: 0,
-        model: "",
-        category: "",
-        note: "",
-        productName: form.file.name,
-        productCode: "",
-        productId: null,
-        uploadedAt: new Date().toISOString(),
-        isWatermarked: false,
-        tags: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      setImages((imgs) => [newImage, ...imgs]);
-
+      await uploadImage(fd);
       closeDialog();
-      loadImages();
+      loadData();
     } catch (err) {
       console.error("Upload failed:", err);
     } finally {
@@ -912,7 +1029,7 @@ export default function ImageManagement() {
       await deleteImage(id);
       setImages((imgs) => imgs.filter((img) => img._id !== id));
       setDeleteConfirm(null);
-      loadImages();
+      loadData();
     } catch (err) {
       console.error("Failed to delete image:", err);
     } finally {
@@ -942,6 +1059,7 @@ export default function ImageManagement() {
     setPage(0);
   };
 
+  // --- Render Helpers ---
   const hasImages = images.length > 0;
   const deleteDialogOpen = Boolean(deleteConfirm);
   const deleting = deleteConfirm ? deletingId === deleteConfirm : false;
@@ -955,6 +1073,47 @@ export default function ImageManagement() {
     [page, rowsPerPage, totalCount]
   );
 
+  // عرض شريط التنقل
+  const renderBreadcrumbs = () => (
+    <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 4, border: `1px solid ${theme.palette.divider}` }}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />}>
+          {navState.breadcrumbs.map((crumb, index) => {
+            const isLast = index === navState.breadcrumbs.length - 1;
+            return isLast ? (
+              <Typography key={index} color="text.primary" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }}>
+                {crumb.name}
+              </Typography>
+            ) : (
+              <Link
+                key={index}
+                component="button"
+                variant="body1"
+                underline="hover"
+                color="inherit"
+                onClick={() => handleBreadcrumbClick(index)}
+                sx={{ display: 'flex', alignItems: 'center' }}
+              >
+                {index === 0 && <HomeIcon sx={{ mr: 0.5, fontSize: 20 }} />}
+                {crumb.name}
+              </Link>
+            );
+          })}
+        </Breadcrumbs>
+
+        {navState.breadcrumbs.length > 1 && !search && (
+          <Button
+            size="small"
+            startIcon={<NavigateNextIcon sx={{ transform: 'rotate(180deg)' }} />}
+            onClick={() => handleBreadcrumbClick(navState.breadcrumbs.length - 2)}
+          >
+            عودة
+          </Button>
+        )}
+      </Stack>
+    </Paper>
+  );
+
   return (
     <Container maxWidth="xl" sx={{ mt: 2, pb: 6 }}>
       <PageHeader isMobile={isMobile} onAdd={openDialog} />
@@ -964,58 +1123,91 @@ export default function ImageManagement() {
         theme={theme}
       />
 
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: 5,
-          p: { xs: 2, md: 3 },
-          border: `1px solid ${theme.palette.divider}`,
-          background:
-            theme.palette.mode === "dark"
-              ? "rgba(15,15,15,0.9)"
-              : "rgba(255,255,255,0.95)",
-        }}
-      >
-        {!hasImages && !loading ? (
-          <EmptyState isMobile={isMobile} search={search} onAdd={openDialog} />
-        ) : (
-          <>
-            <ImagesGrid
-              images={images}
-              loading={loading}
-              rowsPerPage={rowsPerPage}
-              totalSkeletons={rowsPerPage}
-              theme={theme}
-              isMobile={isMobile}
-              onToggle={handleToggle}
-              onDelete={(id) => setDeleteConfirm(id)}
-              onPreview={handlePreview}
-            />
-            <TablePagination
-              component="div"
-              count={paginatedInfo.count}
-              page={paginatedInfo.page}
-              onPageChange={handleChangePage}
-              rowsPerPage={paginatedInfo.rowsPerPage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={[8, 16, 24]}
-              labelRowsPerPage="صور لكل صفحة"
-              labelDisplayedRows={({ from, to, count }) =>
-                `${from}-${to} من ${count}`
-              }
-              sx={{
-                mt: 2,
-                borderTop: `1px solid ${theme.palette.divider}`,
-                "& .MuiTablePagination-toolbar": {
-                  flexWrap: "wrap",
-                  justifyContent: "center",
-                },
-              }}
-            />
-          </>
-        )}
-      </Paper>
+      {/* عرض شريط المسار فقط إذا لم يكن هناك بحث */}
+      {!search && renderBreadcrumbs()}
 
+      {/* منطقة العرض الرئيسية */}
+      <Box sx={{ minHeight: 400 }}>
+        {loading ? (
+          <Grid container spacing={2}>
+            {[1, 2, 3, 4].map(i => (
+              <Grid size={{ xs: 12, sm: 6, md: 3 }} key={i}>
+                <Skeleton variant="rectangular" height={100} sx={{ borderRadius: 4 }} />
+              </Grid>
+            ))}
+          </Grid>
+        ) : search || viewType === 'files' ? (
+          // عرض الصور
+          <Paper
+            elevation={0}
+            sx={{
+              borderRadius: 5,
+              p: { xs: 2, md: 3 },
+              border: `1px solid ${theme.palette.divider}`,
+              background: theme.palette.mode === "dark" ? "rgba(15,15,15,0.9)" : "rgba(255,255,255,0.95)",
+            }}
+          >
+            {!hasImages ? (
+              <EmptyState isMobile={isMobile} search={search} onAdd={openDialog} />
+            ) : (
+              <>
+                <ImagesGrid
+                  images={images}
+                  loading={loading}
+                  rowsPerPage={rowsPerPage}
+                  totalSkeletons={rowsPerPage}
+                  theme={theme}
+                  isMobile={isMobile}
+                  onToggle={handleToggle}
+                  onDelete={(id) => setDeleteConfirm(id)}
+                  onPreview={handlePreview}
+                />
+                {search && (
+                  <TablePagination
+                    component="div"
+                    count={paginatedInfo.count}
+                    page={paginatedInfo.page}
+                    onPageChange={handleChangePage}
+                    rowsPerPage={paginatedInfo.rowsPerPage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    rowsPerPageOptions={[8, 16, 24]}
+                    labelRowsPerPage="صور لكل صفحة"
+                    labelDisplayedRows={({ from, to, count }) =>
+                      `${from}-${to} من ${count}`
+                    }
+                    sx={{
+                      mt: 2,
+                      borderTop: `1px solid ${theme.palette.divider}`,
+                      "& .MuiTablePagination-toolbar": {
+                        flexWrap: "wrap",
+                        justifyContent: "center",
+                      },
+                    }}
+                  />
+                )}
+              </>
+            )}
+          </Paper>
+        ) : (
+          // عرض المجلدات
+          <Grid container spacing={3}>
+            {folderItems.map((item) => (
+              <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item.id}>
+                <FolderCard item={item} onClick={() => handleFolderClick(item)} />
+              </Grid>
+            ))}
+            {folderItems.length === 0 && (
+              <Grid size={{ xs: 12 }}>
+                <Box textAlign="center" py={5}>
+                  <Typography color="text.secondary">هذا المجلد فارغ</Typography>
+                </Box>
+              </Grid>
+            )}
+          </Grid>
+        )}
+      </Box>
+
+      {/* Dialogs */}
       <UploadDialog
         open={open}
         isMobile={isMobile}
@@ -1044,3 +1236,4 @@ export default function ImageManagement() {
     </Container>
   );
 }
+

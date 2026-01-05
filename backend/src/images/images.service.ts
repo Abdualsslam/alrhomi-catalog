@@ -8,6 +8,7 @@ import { ImageDocument } from '../database/schemas/image.schema';
 import { StorageService } from '../storage/storage.service';
 import { UploadImageDto } from './dto/upload-image.dto';
 import { ImageQueryDto } from './dto/image-query.dto';
+import { FolderQueryDto } from './dto/folder-query.dto';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -111,7 +112,7 @@ export class ImagesService {
         imageDoc._id instanceof Types.ObjectId ? imageDoc._id.toHexString() : String(imageDoc._id);
 
       console.log(`[${new Date().toISOString()}] Adding job to queue for image ${imageId}, s3Key: ${s3Key}`);
-      
+
       const job = await this.imageQueue.add({
         metadata: {
           _id: imageId,
@@ -121,7 +122,7 @@ export class ImagesService {
       });
 
       console.log(`[${new Date().toISOString()}] Job added successfully. Job ID: ${job.id}, Image ID: ${imageId}`);
-      
+
       // Check queue status
       const counts = await this.imageQueue.getJobCounts();
       console.log(`[${new Date().toISOString()}] Queue status after adding job:`, counts);
@@ -177,9 +178,9 @@ export class ImagesService {
 
     const idList = ids
       ? ids
-          .split(',')
-          .map((id) => id.trim())
-          .filter(Boolean)
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean)
       : [];
 
     if (idList.length > 0) {
@@ -460,5 +461,119 @@ export class ImagesService {
     });
 
     return { items };
+  }
+
+  async getFolderStructure(query: FolderQueryDto) {
+    const { categoryId, productId } = query;
+
+    // المستوى 3: عرض الصور داخل منتج محدد
+    if (productId) {
+      if (!Types.ObjectId.isValid(productId)) {
+        throw new BadRequestException('معرف المنتج غير صالح');
+      }
+
+      const images = await this.imageModel
+        .find({ product: new Types.ObjectId(productId) })
+        .sort({ createdAt: -1 })
+        .exec();
+
+      return {
+        type: 'files',
+        currentPath: `Product_${productId}`,
+        items: images.map((img) => ({
+          id: img._id,
+          name: `Image ${img._id}`,
+          thumbnailUrl: img.watermarkedUrl || img.originalUrl,
+          type: 'file',
+          originalUrl: img.originalUrl,
+        })),
+      };
+    }
+
+    // المستوى 2: عرض المنتجات داخل تصنيف محدد
+    if (categoryId) {
+      if (!Types.ObjectId.isValid(categoryId)) {
+        throw new BadRequestException('معرف التصنيف غير صالح');
+      }
+
+      const products = await this.productModel
+        .find({ category: new Types.ObjectId(categoryId) })
+        .select('_id productName productCode model')
+        .exec();
+
+      return {
+        type: 'folders',
+        level: 'product',
+        items: products.map((product) => ({
+          id: product._id,
+          name: product.productName,
+          subtitle: product.model || product.productCode,
+          type: 'folder',
+          isLeaf: false,
+        })),
+      };
+    }
+
+    // المستوى 1 (الجذر): عرض التصنيفات (Categories)
+    const categories = await this.productModel.aggregate([
+      {
+        $group: {
+          _id: '$category',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'categoryInfo',
+        },
+      },
+      { $unwind: '$categoryInfo' },
+      {
+        $project: {
+          _id: 1,
+          name: '$categoryInfo.name',
+          productCount: '$count',
+        },
+      },
+    ]);
+
+    // إضافة مجلد افتراضي للصور غير المصنفة
+    const unassignedImagesCount = await this.imageModel.countDocuments({
+      product: null,
+    });
+
+    const resultItems: Array<{
+      id: unknown;
+      name: string;
+      subtitle: string;
+      type: string;
+      isLeaf?: boolean;
+      special?: boolean;
+    }> = categories.map((cat) => ({
+      id: cat._id,
+      name: cat.name || 'تصنيف غير معروف',
+      subtitle: `${cat.productCount} منتج`,
+      type: 'folder',
+      isLeaf: false,
+    }));
+
+    if (unassignedImagesCount > 0) {
+      resultItems.push({
+        id: 'unassigned',
+        name: 'صور غير مرتبطة بمنتجات',
+        subtitle: `${unassignedImagesCount} صورة`,
+        type: 'folder',
+        special: true,
+      });
+    }
+
+    return {
+      type: 'folders',
+      level: 'category',
+      items: resultItems,
+    };
   }
 }
