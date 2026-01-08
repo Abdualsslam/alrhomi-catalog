@@ -10,6 +10,7 @@ import { StorageModule } from './storage/storage.module';
 import { QueueModule } from './queue/queue.module';
 import { JobStatusModule } from './job-status/job-status.module';
 import { HealthModule } from './health/health.module';
+import { FoldersModule } from './folders/folders.module';
 
 @Module({
   imports: [
@@ -24,6 +25,8 @@ import { HealthModule } from './health/health.module';
     QueueModule,
     JobStatusModule,
     HealthModule,
+    FoldersModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }
+

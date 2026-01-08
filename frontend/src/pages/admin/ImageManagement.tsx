@@ -37,6 +37,7 @@ import {
   CloudUpload,
   CloudUpload as UploadIcon,
   Close as CloseIcon,
+  CreateNewFolder as CreateNewFolderIcon,
   Delete as DeleteIcon,
   Folder as FolderIcon,
   Home as HomeIcon,
@@ -47,12 +48,14 @@ import {
 import {
   deleteImage,
   fetchImages,
-  fetchFolderStructure,
+  getFolderContents,
+  createFolder,
   toggleWatermark,
   uploadImage,
 } from "../../api/admin";
 import { Image } from "../../types/models.types";
-import { FolderQueryDto, FolderItem } from "../../types/api.types";
+import { RealFolder } from "../../types/api.types";
+
 
 // Extended Image type with additional properties used in this component
 interface ImageData extends Omit<Image, 'uploadedBy'> {
@@ -155,11 +158,11 @@ interface ImagePreviewDialogProps {
 
 // --- مكون بطاقة المجلد ---
 interface FolderCardProps {
-  item: FolderItem;
+  folder: RealFolder;
   onClick: () => void;
 }
 
-function FolderCard({ item, onClick }: FolderCardProps) {
+function FolderCard({ folder, onClick }: FolderCardProps) {
   const theme = useTheme();
   return (
     <Card
@@ -191,10 +194,7 @@ function FolderCard({ item, onClick }: FolderCardProps) {
           </Box>
           <Box>
             <Typography variant="subtitle1" fontWeight="bold" noWrap>
-              {item.name}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {item.subtitle}
+              {folder.name}
             </Typography>
           </Box>
         </Stack>
@@ -203,12 +203,12 @@ function FolderCard({ item, onClick }: FolderCardProps) {
   );
 }
 
-// --- حالة التصفح الهرمي ---
-interface NavigationState {
-  categoryId: string | null;
-  productId: string | null;
-  breadcrumbs: { id: string | null; name: string; type: 'root' | 'category' | 'product' }[];
+// --- Breadcrumb item from API ---
+interface BreadcrumbItem {
+  id: string | null;
+  name: string;
 }
+
 
 
 function PageHeader({ isMobile, onAdd }: PageHeaderProps) {
@@ -859,17 +859,13 @@ export default function ImageManagement() {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   // --- State ---
-  // 1. حالة التصفح (أين أنا الآن؟)
-  const [navState, setNavState] = useState<NavigationState>({
-    categoryId: null,
-    productId: null,
-    breadcrumbs: [{ id: null, name: 'الرئيسية', type: 'root' }],
-  });
+  // 1. حالة التصفح (المجلد الحالي)
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([{ id: null, name: 'الملفات' }]);
 
   // 2. البيانات المعروضة
-  const [folderItems, setFolderItems] = useState<FolderItem[]>([]);
+  const [folders, setFolders] = useState<RealFolder[]>([]);
   const [images, setImages] = useState<ImageData[]>([]);
-  const [viewType, setViewType] = useState<'folders' | 'files'>('folders');
   const [totalCount, setTotalCount] = useState(0);
 
   // 3. حالات التحميل والبحث والصفحة
@@ -886,6 +882,11 @@ export default function ImageManagement() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<ImageData | null>(null);
 
+  // 5. Dialog إنشاء مجلد
+  const [createFolderOpen, setCreateFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
+
   // --- دالة التحميل الرئيسية ---
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -899,85 +900,61 @@ export default function ImageManagement() {
         });
         setImages(res.items as ImageData[]);
         setTotalCount(res.totalItems || res.total || 0);
-        setViewType('files');
+        setFolders([]);
         return;
       }
 
-      // تحميل هيكل المجلدات بناءً على المكان الحالي
-      const query: FolderQueryDto = {};
-      if (navState.categoryId) query.categoryId = navState.categoryId;
-      if (navState.productId) query.productId = navState.productId;
+      // تحميل محتويات المجلد الحالي
+      const folderId = currentFolderId || 'root';
+      const res = await getFolderContents(folderId);
 
-      const res = await fetchFolderStructure(query);
-
-      if (res.type === 'folders') {
-        setFolderItems(res.items);
-        setViewType('folders');
-      } else {
-        // تحويل عناصر المجلدات إلى هيكل الصور
-        setImages(res.items.map(item => ({
-          _id: item.id,
-          originalUrl: item.originalUrl || '',
-          watermarkedUrl: item.thumbnailUrl,
-          productName: item.name,
-          category: '',
-          tags: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        })) as ImageData[]);
-        setViewType('files');
-      }
+      setFolders(res.folders);
+      setImages(res.images as ImageData[]);
+      setBreadcrumbs(res.breadcrumbs);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [navState, search, page, rowsPerPage]);
+  }, [currentFolderId, search, page, rowsPerPage]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
   // --- دالة التعامل مع النقر على مجلد ---
-  const handleFolderClick = (item: FolderItem) => {
-    if (item.id === 'unassigned') {
-      // مجلد خاص للصور غير المرتبطة
-      return;
-    }
-
-    if (navState.categoryId === null) {
-      // نحن في الجذر، وضغطنا على تصنيف
-      setNavState(prev => ({
-        categoryId: item.id,
-        productId: null,
-        breadcrumbs: [...prev.breadcrumbs, { id: item.id, name: item.name, type: 'category' }]
-      }));
-    } else if (navState.productId === null) {
-      // نحن داخل تصنيف، وضغطنا على منتج
-      setNavState(prev => ({
-        ...prev,
-        productId: item.id,
-        breadcrumbs: [...prev.breadcrumbs, { id: item.id, name: item.name, type: 'product' }]
-      }));
-    }
+  const handleFolderClick = (folder: RealFolder) => {
+    setCurrentFolderId(folder._id);
   };
 
   // --- دالة التنقل عبر Breadcrumbs ---
-  const handleBreadcrumbClick = (index: number) => {
-    const targetCrumb = navState.breadcrumbs[index];
-    const newBreadcrumbs = navState.breadcrumbs.slice(0, index + 1);
-
-    if (targetCrumb.type === 'root') {
-      setNavState({ categoryId: null, productId: null, breadcrumbs: newBreadcrumbs });
-    } else if (targetCrumb.type === 'category') {
-      setNavState({ categoryId: targetCrumb.id, productId: null, breadcrumbs: newBreadcrumbs });
-    }
+  const handleBreadcrumbClick = (crumb: BreadcrumbItem) => {
+    setCurrentFolderId(crumb.id);
     setSearch("");
+  };
+
+  // --- إنشاء مجلد جديد ---
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+    setCreatingFolder(true);
+    try {
+      await createFolder({
+        name: newFolderName.trim(),
+        parentId: currentFolderId || undefined,
+      });
+      setCreateFolderOpen(false);
+      setNewFolderName("");
+      loadData();
+    } catch (err) {
+      console.error("Failed to create folder:", err);
+    } finally {
+      setCreatingFolder(false);
+    }
   };
 
   // --- معالجات الأحداث ---
   const openDialog = () => {
-    setForm({ productId: navState.productId || "", file: null });
+    setForm({ productId: "", file: null });
     setOpen(true);
   };
 
@@ -997,6 +974,8 @@ export default function ImageManagement() {
 
     const fd = new FormData();
     fd.append("file", form.file);
+    // إرسال المجلد الحالي مع الصورة
+    if (currentFolderId) fd.append("folderId", currentFolderId);
     if (form.productId) fd.append("productId", form.productId);
 
     try {
@@ -1008,6 +987,7 @@ export default function ImageManagement() {
     } finally {
       setUploading(false);
     }
+
   };
 
   const handleToggle = (id: string) => async () => {
@@ -1078,8 +1058,8 @@ export default function ImageManagement() {
     <Paper elevation={0} sx={{ p: 2, mb: 3, borderRadius: 4, border: `1px solid ${theme.palette.divider}` }}>
       <Stack direction="row" alignItems="center" justifyContent="space-between">
         <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />}>
-          {navState.breadcrumbs.map((crumb, index) => {
-            const isLast = index === navState.breadcrumbs.length - 1;
+          {breadcrumbs.map((crumb, index) => {
+            const isLast = index === breadcrumbs.length - 1;
             return isLast ? (
               <Typography key={index} color="text.primary" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }}>
                 {crumb.name}
@@ -1091,7 +1071,7 @@ export default function ImageManagement() {
                 variant="body1"
                 underline="hover"
                 color="inherit"
-                onClick={() => handleBreadcrumbClick(index)}
+                onClick={() => handleBreadcrumbClick(crumb)}
                 sx={{ display: 'flex', alignItems: 'center' }}
               >
                 {index === 0 && <HomeIcon sx={{ mr: 0.5, fontSize: 20 }} />}
@@ -1101,15 +1081,25 @@ export default function ImageManagement() {
           })}
         </Breadcrumbs>
 
-        {navState.breadcrumbs.length > 1 && !search && (
+        <Stack direction="row" spacing={1}>
+          {breadcrumbs.length > 1 && !search && (
+            <Button
+              size="small"
+              startIcon={<NavigateNextIcon sx={{ transform: 'rotate(180deg)' }} />}
+              onClick={() => handleBreadcrumbClick(breadcrumbs[breadcrumbs.length - 2])}
+            >
+              عودة
+            </Button>
+          )}
           <Button
             size="small"
-            startIcon={<NavigateNextIcon sx={{ transform: 'rotate(180deg)' }} />}
-            onClick={() => handleBreadcrumbClick(navState.breadcrumbs.length - 2)}
+            variant="outlined"
+            startIcon={<CreateNewFolderIcon />}
+            onClick={() => setCreateFolderOpen(true)}
           >
-            عودة
+            مجلد جديد
           </Button>
-        )}
+        </Stack>
       </Stack>
     </Paper>
   );
@@ -1136,74 +1126,77 @@ export default function ImageManagement() {
               </Grid>
             ))}
           </Grid>
-        ) : search || viewType === 'files' ? (
-          // عرض الصور
-          <Paper
-            elevation={0}
-            sx={{
-              borderRadius: 5,
-              p: { xs: 2, md: 3 },
-              border: `1px solid ${theme.palette.divider}`,
-              background: theme.palette.mode === "dark" ? "rgba(15,15,15,0.9)" : "rgba(255,255,255,0.95)",
-            }}
-          >
-            {!hasImages ? (
-              <EmptyState isMobile={isMobile} search={search} onAdd={openDialog} />
-            ) : (
-              <>
-                <ImagesGrid
-                  images={images}
-                  loading={loading}
-                  rowsPerPage={rowsPerPage}
-                  totalSkeletons={rowsPerPage}
-                  theme={theme}
-                  isMobile={isMobile}
-                  onToggle={handleToggle}
-                  onDelete={(id) => setDeleteConfirm(id)}
-                  onPreview={handlePreview}
-                />
-                {search && (
-                  <TablePagination
-                    component="div"
-                    count={paginatedInfo.count}
-                    page={paginatedInfo.page}
-                    onPageChange={handleChangePage}
-                    rowsPerPage={paginatedInfo.rowsPerPage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    rowsPerPageOptions={[8, 16, 24]}
-                    labelRowsPerPage="صور لكل صفحة"
-                    labelDisplayedRows={({ from, to, count }) =>
-                      `${from}-${to} من ${count}`
-                    }
-                    sx={{
-                      mt: 2,
-                      borderTop: `1px solid ${theme.palette.divider}`,
-                      "& .MuiTablePagination-toolbar": {
-                        flexWrap: "wrap",
-                        justifyContent: "center",
-                      },
-                    }}
-                  />
-                )}
-              </>
-            )}
-          </Paper>
         ) : (
-          // عرض المجلدات
-          <Grid container spacing={3}>
-            {folderItems.map((item) => (
-              <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item.id}>
-                <FolderCard item={item} onClick={() => handleFolderClick(item)} />
-              </Grid>
-            ))}
-            {folderItems.length === 0 && (
-              <Grid size={{ xs: 12 }}>
-                <Box textAlign="center" py={5}>
-                  <Typography color="text.secondary">هذا المجلد فارغ</Typography>
-                </Box>
+          <>
+            {/* عرض المجلدات أولاً */}
+            {folders.length > 0 && !search && (
+              <Grid container spacing={3} sx={{ mb: 3 }}>
+                {folders.map((folder) => (
+                  <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={folder._id}>
+                    <FolderCard folder={folder} onClick={() => handleFolderClick(folder)} />
+                  </Grid>
+                ))}
               </Grid>
             )}
-          </Grid>
+
+            {/* عرض الصور */}
+            {images.length > 0 || search ? (
+              <Paper
+                elevation={0}
+                sx={{
+                  borderRadius: 5,
+                  p: { xs: 2, md: 3 },
+                  border: `1px solid ${theme.palette.divider}`,
+                  background: theme.palette.mode === "dark" ? "rgba(15,15,15,0.9)" : "rgba(255,255,255,0.95)",
+                }}
+              >
+                {!hasImages ? (
+                  <EmptyState isMobile={isMobile} search={search} onAdd={openDialog} />
+                ) : (
+                  <>
+                    <ImagesGrid
+                      images={images}
+                      loading={loading}
+                      rowsPerPage={rowsPerPage}
+                      totalSkeletons={rowsPerPage}
+                      theme={theme}
+                      isMobile={isMobile}
+                      onToggle={handleToggle}
+                      onDelete={(id) => setDeleteConfirm(id)}
+                      onPreview={handlePreview}
+                    />
+                    {search && (
+                      <TablePagination
+                        component="div"
+                        count={paginatedInfo.count}
+                        page={paginatedInfo.page}
+                        onPageChange={handleChangePage}
+                        rowsPerPage={paginatedInfo.rowsPerPage}
+                        onRowsPerPageChange={handleChangeRowsPerPage}
+                        rowsPerPageOptions={[8, 16, 24]}
+                        labelRowsPerPage="صور لكل صفحة"
+                        labelDisplayedRows={({ from, to, count }) =>
+                          `${from}-${to} من ${count}`
+                        }
+                        sx={{
+                          mt: 2,
+                          borderTop: `1px solid ${theme.palette.divider}`,
+                          "& .MuiTablePagination-toolbar": {
+                            flexWrap: "wrap",
+                            justifyContent: "center",
+                          },
+                        }}
+                      />
+                    )}
+                  </>
+                )}
+              </Paper>
+            ) : folders.length === 0 && (
+              <Box textAlign="center" py={5}>
+                <Typography color="text.secondary">هذا المجلد فارغ</Typography>
+              </Box>
+            )}
+          </>
         )}
       </Box>
 
@@ -1233,6 +1226,41 @@ export default function ImageManagement() {
         isMobile={isMobile}
         onClose={closePreview}
       />
+
+      {/* Create Folder Dialog */}
+      <Dialog
+        open={createFolderOpen}
+        onClose={() => setCreateFolderOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>إنشاء مجلد جديد</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="اسم المجلد"
+            fullWidth
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+            disabled={creatingFolder}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCreateFolderOpen(false)} disabled={creatingFolder}>
+            إلغاء
+          </Button>
+          <Button
+            onClick={handleCreateFolder}
+            variant="contained"
+            disabled={creatingFolder || !newFolderName.trim()}
+            startIcon={creatingFolder ? <CircularProgress size={16} /> : <CreateNewFolderIcon />}
+          >
+            {creatingFolder ? 'جاري الإنشاء...' : 'إنشاء'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

@@ -8,11 +8,6 @@ import {
   Dialog,
   DialogActions,
   DialogContent,
-  CardActionArea, // New
-  Breadcrumbs, // New
-  Link, // New
-  alpha, // New
-  Stack, // New
   DialogTitle,
   Grid,
   IconButton,
@@ -45,8 +40,8 @@ import {
   Image as ImageIcon,
   Link as LinkIcon,
   Folder as FolderIcon,
-  NavigateNext as NavigateNextIcon,
   Home as HomeIcon,
+  NavigateNext as NavigateNextIcon,
 } from "@mui/icons-material";
 import {
   fetchProducts,
@@ -55,10 +50,10 @@ import {
   deleteProduct,
   fetchCategories,
   fetchImages,
-  fetchFolderStructure, // New Import
+  getFolderContents,
 } from "../../api/admin";
+import { RealFolder } from "../../types/api.types";
 import { Category } from "../../types/models.types";
-import { FolderItem, FolderQueryDto } from "../../types/api.types"; // New Import
 // Local interfaces for this component
 interface FormVariant {
   name: string;
@@ -125,11 +120,7 @@ interface QueryState {
   search: string;
   assigned?: string;
 }
-interface NavigationState {
-  categoryId: string | null;
-  productId: string | null;
-  breadcrumbs: { id: string | null; name: string; type: 'root' | 'category' | 'product' }[];
-}
+
 const getDefaultForm = (): ProductForm => ({
   productName: "",
   productCode: "",
@@ -141,40 +132,7 @@ const getDefaultForm = (): ProductForm => ({
   tags: [],
   variants: [],
 });
-// مكون فرعي لعرض المجلد (يمكن وضعه في ملف منفصل لاحقاً)
-function FolderCard({ item, onClick }: { item: FolderItem; onClick: () => void }) {
-  const theme = useTheme();
-  return (
-    <Card
-      elevation={0}
-      sx={{
-        border: `1px solid ${theme.palette.divider}`,
-        borderRadius: 3,
-        backgroundColor: theme.palette.background.paper,
-        transition: 'transform 0.2s, box-shadow 0.2s',
-        '&:hover': {
-          transform: 'translateY(-2px)',
-          borderColor: theme.palette.primary.main,
-          boxShadow: theme.shadows[2],
-        }
-      }}
-    >
-      <CardActionArea onClick={onClick} sx={{ p: 2 }}>
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <FolderIcon sx={{ color: theme.palette.primary.main, fontSize: 40 }} />
-          <Box>
-            <Typography variant="subtitle2" fontWeight="bold" noWrap>
-              {item.name}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {item.subtitle}
-            </Typography>
-          </Box>
-        </Stack>
-      </CardActionArea>
-    </Card>
-  );
-}
+
 export default function ProductManagement() {
   const theme = useTheme();
   const [products, setProducts] = useState<ProductItem[]>([]);
@@ -192,11 +150,7 @@ export default function ProductManagement() {
   const [selectedImagesLoading, setSelectedImagesLoading] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
 
-  // هل نعرض مجلدات أم ملفات؟
-  const [libraryViewType, setLibraryViewType] = useState<'folders' | 'files'>('folders');
-  const [folderItems, setFolderItems] = useState<FolderItem[]>([]); // قائمة المجلدات
-
-  // تعديل: imageLibrary سيستخدم الآن لتخزين الصور فقط عند عرض الملفات
+  // Image Library state with folder navigation
   const [imageLibrary, setImageLibrary] = useState<LibraryState<ImageItem>>({
     items: [],
     loading: false,
@@ -208,6 +162,13 @@ export default function ProductManagement() {
     search: "",
     assigned: "all",
   });
+
+  // Folder navigation state for image dialog
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [folders, setFolders] = useState<RealFolder[]>([]);
+  const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | null; name: string }[]>([
+    { id: null, name: "الملفات" },
+  ]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [categories, setCategories] = useState<CategoryItem[]>([]);
@@ -231,11 +192,6 @@ export default function ProductManagement() {
     page: 0,
     rowsPerPage: 6,
     search: "",
-  });
-  const [navState, setNavState] = useState<NavigationState>({
-    categoryId: null,
-    productId: null,
-    breadcrumbs: [{ id: null, name: 'الرئيسية', type: 'root' }],
   });
 
   const loadProducts = useCallback(async () => {
@@ -276,93 +232,50 @@ export default function ProductManagement() {
     loadProducts();
   }, [loadProducts]);
 
-  // دالة لجلب المجلدات أو الصور بناءً على المسار الحالي
-  const loadFolderOrImages = useCallback(async () => {
+  // دالة لجلب الصور للمكتبة مع دعم المجلدات
+  const loadImageLibrary = useCallback(async () => {
     if (!imageDialogOpen) return;
-
-    // إذا كان هناك بحث، نستخدم البحث القديم (Flat List)
-    if (imageLibraryQuery.search) {
-      setLibraryViewType('files');
-      // ... (نفس منطق البحث القديم باستخدام fetchImages)
-      // ...
-      return;
-    }
 
     setImageLibrary(prev => ({ ...prev, loading: true }));
 
     try {
-      const query: FolderQueryDto = {};
-      if (navState.categoryId) query.categoryId = navState.categoryId;
-      if (navState.productId) query.productId = navState.productId;
-
-      const res = await fetchFolderStructure(query);
-
-      if (res.type === 'folders') {
-        setFolderItems(res.items);
-        setLibraryViewType('folders');
-      } else {
-        // تحويل الصور القادمة من المجلد إلى الشكل المناسب
-        const images = res.items.map(item => ({
-          _id: item.id,
-          productName: item.name,
-          originalUrl: item.originalUrl || item.thumbnailUrl,
-          watermarkedUrl: item.thumbnailUrl
-        }));
-        setImageLibrary(prev => ({
-          ...prev,
-          items: images as any,
-          total: images.length // ملاحظة: الـ Folder API حالياً يرجع الكل، قد تحتاج لعمل Paging لاحقاً
-        }));
-        setLibraryViewType('files');
+      // إذا كان هناك بحث، نبحث مباشرة في الصور
+      if (imageLibraryQuery.search) {
+        const res = await fetchImages({
+          page: imageLibraryQuery.page + 1,
+          limit: imageLibraryQuery.rowsPerPage,
+          search: imageLibraryQuery.search,
+          assigned: imageLibraryQuery.assigned === 'all' ? undefined : imageLibraryQuery.assigned === 'assigned' ? true : false,
+        });
+        setImageLibrary({
+          items: (res.items || []) as unknown as ImageItem[],
+          loading: false,
+          total: res.totalItems || res.total || 0,
+        });
+        setFolders([]);
+        return;
       }
+
+      // تحميل محتويات المجلد الحالي
+      const folderId = currentFolderId || 'root';
+      const res = await getFolderContents(folderId);
+
+      setFolders(res.folders);
+      setImageLibrary({
+        items: (res.images || []) as unknown as ImageItem[],
+        loading: false,
+        total: res.images?.length || 0,
+      });
+      setBreadcrumbs(res.breadcrumbs);
     } catch (err) {
-      console.error("Failed to load folder structure", err);
-    } finally {
+      console.error("Failed to load images", err);
       setImageLibrary(prev => ({ ...prev, loading: false }));
     }
-  }, [imageDialogOpen, navState, imageLibraryQuery.search]);
+  }, [imageDialogOpen, imageLibraryQuery, currentFolderId]);
 
-  // استبدل useEffect القديم الخاص بـ loadImageLibrary بهذا:
   useEffect(() => {
-    loadFolderOrImages();
-  }, [loadFolderOrImages]);
-
-
-  // --- دوال التحكم في التنقل (مثل ImageManagement) ---
-  const handleFolderClick = (item: FolderItem) => {
-    // حالة خاصة: المجلد الافتراضي للصور غير المرتبطة
-    if (item.id === 'unassigned') {
-      // هنا يمكنك توجيه الكود لجلب الصور غير المرتبطة فقط
-      // سيتطلب ذلك تعديلاً بسيطاً لضبط الفلتر
-      return;
-    }
-
-    if (navState.categoryId === null) {
-      setNavState(prev => ({
-        categoryId: item.id,
-        productId: null,
-        breadcrumbs: [...prev.breadcrumbs, { id: item.id, name: item.name, type: 'category' }]
-      }));
-    } else if (navState.productId === null) {
-      setNavState(prev => ({
-        ...prev,
-        productId: item.id,
-        breadcrumbs: [...prev.breadcrumbs, { id: item.id, name: item.name, type: 'product' }]
-      }));
-    }
-  };
-
-  const handleBreadcrumbClick = (index: number) => {
-    const targetCrumb = navState.breadcrumbs[index];
-    const newBreadcrumbs = navState.breadcrumbs.slice(0, index + 1);
-
-    if (targetCrumb.type === 'root') {
-      setNavState({ categoryId: null, productId: null, breadcrumbs: newBreadcrumbs });
-    } else if (targetCrumb.type === 'category') {
-      setNavState({ categoryId: targetCrumb.id, productId: null, breadcrumbs: newBreadcrumbs });
-    }
-    setImageLibraryQuery(prev => ({ ...prev, search: "" })); // تصفير البحث
-  };
+    loadImageLibrary();
+  }, [loadImageLibrary]);
 
   useEffect(() => {
     (async () => {
@@ -409,41 +322,6 @@ export default function ProductManagement() {
     [selectedSimilarProducts]
   );
 
-  const loadImageLibrary = useCallback(async () => {
-    if (!imageDialogOpen) return;
-    setImageLibrary((prev) => ({ ...prev, loading: true }));
-    try {
-      const assignedFilter = imageLibraryQuery.assigned;
-      const assignedParam =
-        assignedFilter === "unassigned"
-          ? false
-          : assignedFilter === "assigned"
-            ? true
-            : undefined;
-      const res = await fetchImages({
-        page: imageLibraryQuery.page + 1,
-        limit: imageLibraryQuery.rowsPerPage,
-        search: imageLibraryQuery.search,
-        assigned: assignedParam,
-      });
-      // fetchImages returns PaginatedResponse directly
-      const items = res.items;
-      const totalItems = res.totalItems || res.total || 0;
-      setImageLibrary((prev) => ({
-        ...prev,
-        items: items as unknown as ImageItem[],
-        total: totalItems,
-      }));
-    } catch (err) {
-      console.error("Failed to load images", err);
-    } finally {
-      setImageLibrary((prev) => ({ ...prev, loading: false }));
-    }
-  }, [imageDialogOpen, imageLibraryQuery]);
-
-  useEffect(() => {
-    loadImageLibrary();
-  }, [loadImageLibrary]);
 
   const fetchSelectedImagesMeta = useCallback(async (ids: string[]) => {
     if (!ids || ids.length === 0) {
@@ -570,10 +448,30 @@ export default function ProductManagement() {
 
   const openImageDialog = () => {
     setImageDialogOpen(true);
+    // Reset folder navigation state
+    setCurrentFolderId(null);
+    setBreadcrumbs([{ id: null, name: "الملفات" }]);
+    setFolders([]);
   };
 
   const closeImageDialog = () => {
     setImageDialogOpen(false);
+    // Reset folder navigation when closing
+    setCurrentFolderId(null);
+    setBreadcrumbs([{ id: null, name: "الملفات" }]);
+    setFolders([]);
+    setImageLibraryQuery(prev => ({ ...prev, search: "", page: 0 }));
+  };
+
+  // Folder navigation handlers
+  const handleFolderClick = (folder: RealFolder) => {
+    setCurrentFolderId(folder._id);
+    setImageLibraryQuery(prev => ({ ...prev, page: 0 }));
+  };
+
+  const handleBreadcrumbClick = (crumb: { id: string | null; name: string }) => {
+    setCurrentFolderId(crumb.id);
+    setImageLibraryQuery(prev => ({ ...prev, search: "", page: 0 }));
   };
 
   const toggleImageSelection = (image: ImageItem) => {
@@ -1765,31 +1663,48 @@ export default function ProductManagement() {
             }}
           />
 
-          {/* شريط المسار (Breadcrumbs) */}
+          {/* شريط المسار (Breadcrumbs) - يظهر فقط عند عدم البحث */}
           {!imageLibraryQuery.search && (
-            <Paper variant="outlined" sx={{ p: 1.5, mb: 3, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
-              <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />}>
-                {navState.breadcrumbs.map((crumb, index) => {
-                  const isLast = index === navState.breadcrumbs.length - 1;
-                  return isLast ? (
-                    <Typography key={index} color="text.primary" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }}>
-                      {crumb.name}
-                    </Typography>
-                  ) : (
-                    <Link
-                      key={index}
-                      component="button"
-                      underline="hover"
-                      color="inherit"
-                      onClick={() => handleBreadcrumbClick(index)}
-                      sx={{ display: 'flex', alignItems: 'center' }}
-                    >
-                      {index === 0 && <HomeIcon sx={{ mr: 0.5, fontSize: 20 }} />}
-                      {crumb.name}
-                    </Link>
-                  );
-                })}
-              </Breadcrumbs>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 1.5,
+                mb: 2,
+                borderRadius: 2,
+                border: `1px solid ${theme.palette.divider}`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                flexWrap: 'wrap'
+              }}
+            >
+              {breadcrumbs.map((crumb, index) => {
+                const isLast = index === breadcrumbs.length - 1;
+                return (
+                  <Box key={index} sx={{ display: 'flex', alignItems: 'center' }}>
+                    {index > 0 && <NavigateNextIcon fontSize="small" sx={{ mx: 0.5, color: 'text.secondary' }} />}
+                    {isLast ? (
+                      <Typography fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }}>
+                        {crumb.name}
+                      </Typography>
+                    ) : (
+                      <Button
+                        size="small"
+                        onClick={() => handleBreadcrumbClick(crumb)}
+                        sx={{
+                          minWidth: 'auto',
+                          px: 1,
+                          textTransform: 'none',
+                          color: 'text.secondary'
+                        }}
+                        startIcon={index === 0 ? <HomeIcon fontSize="small" /> : undefined}
+                      >
+                        {crumb.name}
+                      </Button>
+                    )}
+                  </Box>
+                );
+              })}
             </Paper>
           )}
 
@@ -1802,71 +1717,102 @@ export default function ProductManagement() {
                 </Grid>
               ))}
             </Grid>
-          ) : libraryViewType === 'folders' && !imageLibraryQuery.search ? (
-            // عرض المجلدات
-            <Grid container spacing={2}>
-              {folderItems.map(item => (
-                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={item.id}>
-                  <FolderCard item={item} onClick={() => handleFolderClick(item)} />
-                </Grid>
-              ))}
-              {folderItems.length === 0 && (
-                <Grid size={{ xs: 12 }}>
-                  <Typography textAlign="center" color="text.secondary" py={5}>
-                    هذا المجلد فارغ
-                  </Typography>
-                </Grid>
-              )}
-            </Grid>
           ) : (
-            // عرض الصور (الملفات)
-            <Grid container spacing={2}>
-              {imageLibrary.items.length === 0 ? (
-                <Grid size={{ xs: 12 }}>
-                  <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderStyle: 'dashed' }}>
-                    <ImageIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-                    <Typography>لا توجد صور هنا</Typography>
-                  </Paper>
-                </Grid>
-              ) : (
-                imageLibrary.items.map((image) => {
-                  const url = image.watermarkedUrl || image.originalUrl || "";
-                  const isSelected = selectedImageIdSet.has(image._id);
-                  const isAssignedToAnother = image.productId && (!editingProduct || image.productId !== editingProduct._id);
-                  const isSelectable = !isAssignedToAnother || isSelected;
-
-                  return (
-                    <Grid size={{ xs: 12, sm: 6, md: 4 }} key={image._id}>
+            <>
+              {/* عرض المجلدات أولاً */}
+              {folders.length > 0 && !imageLibraryQuery.search && (
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  {folders.map((folder) => (
+                    <Grid size={{ xs: 6, sm: 4, md: 3 }} key={folder._id}>
                       <Card
-                        onClick={() => {
-                          if (!isSelectable) return;
-                          toggleImageSelection(image);
-                        }}
+                        onClick={() => handleFolderClick(folder)}
                         sx={{
                           borderRadius: 3,
-                          cursor: isSelectable ? "pointer" : "not-allowed",
-                          opacity: isSelectable ? 1 : 0.55,
-                          position: "relative",
-                          border: isSelected ? `2px solid ${theme.palette.primary.main}` : 'none'
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            transform: 'translateY(-2px)',
+                            boxShadow: theme.shadows[4],
+                            borderColor: theme.palette.primary.main,
+                          },
+                          border: `1px solid ${theme.palette.divider}`,
                         }}
                       >
-                        <Box sx={{ position: "relative", pt: "56.25%" }}>
-                          <Box component="img" src={url} sx={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-                          {isSelected && <CheckCircleIcon color="primary" sx={{ position: "absolute", top: 8, right: 8, bgcolor: 'white', borderRadius: '50%' }} />}
-                        </Box>
-                        <Box sx={{ p: 1.5 }}>
-                          <Typography variant="body2" noWrap>{image.productName || 'صورة'}</Typography>
+                        <Box
+                          sx={{
+                            p: 2,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 1,
+                          }}
+                        >
+                          <FolderIcon sx={{ fontSize: 40, color: theme.palette.warning.main }} />
+                          <Typography variant="body2" fontWeight="medium" noWrap sx={{ width: '100%', textAlign: 'center' }}>
+                            {folder.name}
+                          </Typography>
                         </Box>
                       </Card>
                     </Grid>
-                  );
-                })
+                  ))}
+                </Grid>
               )}
-            </Grid>
+
+              {/* عرض الصور */}
+              <Grid container spacing={2}>
+                {imageLibrary.items.length === 0 && folders.length === 0 ? (
+                  <Grid size={{ xs: 12 }}>
+                    <Paper variant="outlined" sx={{ p: 4, textAlign: 'center', borderStyle: 'dashed' }}>
+                      <ImageIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                      <Typography>لا توجد صور</Typography>
+                    </Paper>
+                  </Grid>
+                ) : imageLibrary.items.length === 0 && folders.length > 0 ? (
+                  <Grid size={{ xs: 12 }}>
+                    <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', borderStyle: 'dashed' }}>
+                      <Typography color="text.secondary">هذا المجلد لا يحتوي على صور، فقط مجلدات فرعية</Typography>
+                    </Paper>
+                  </Grid>
+                ) : (
+                  imageLibrary.items.map((image) => {
+                    const url = image.watermarkedUrl || image.originalUrl || "";
+                    const isSelected = selectedImageIdSet.has(image._id);
+                    const isAssignedToAnother = image.productId && (!editingProduct || image.productId !== editingProduct._id);
+                    const isSelectable = !isAssignedToAnother || isSelected;
+
+                    return (
+                      <Grid size={{ xs: 12, sm: 6, md: 4 }} key={image._id}>
+                        <Card
+                          onClick={() => {
+                            if (!isSelectable) return;
+                            toggleImageSelection(image);
+                          }}
+                          sx={{
+                            borderRadius: 3,
+                            cursor: isSelectable ? "pointer" : "not-allowed",
+                            opacity: isSelectable ? 1 : 0.55,
+                            position: "relative",
+                            border: isSelected ? `2px solid ${theme.palette.primary.main}` : 'none'
+                          }}
+                        >
+                          <Box sx={{ position: "relative", pt: "56.25%" }}>
+                            <Box component="img" src={url} sx={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                            {isSelected && <CheckCircleIcon color="primary" sx={{ position: "absolute", top: 8, right: 8, bgcolor: 'white', borderRadius: '50%' }} />}
+                          </Box>
+                          <Box sx={{ p: 1.5 }}>
+                            <Typography variant="body2" noWrap>{image.productName || 'صورة'}</Typography>
+                          </Box>
+                        </Card>
+                      </Grid>
+                    );
+                  })
+                )}
+              </Grid>
+            </>
           )}
 
           {/* Pagination */}
-          {libraryViewType === 'files' && imageLibrary.total > 0 && (
+          {imageLibrary.total > 0 && (
             <TablePagination
               component="div"
               count={imageLibrary.total}

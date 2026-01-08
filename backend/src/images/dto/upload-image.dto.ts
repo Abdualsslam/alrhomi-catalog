@@ -9,4 +9,13 @@ export class UploadImageDto {
   @IsOptional()
   @IsMongoId({ message: 'معرّف المنتج غير صالح' })
   productId?: string;
+
+  @ApiPropertyOptional({
+    description: 'معرّف المجلد الذي ستُحفظ فيه الصورة (اختياري)',
+    example: '665f1f77bcf86cd799439099',
+  })
+  @IsOptional()
+  @IsMongoId({ message: 'معرّف المجلد غير صالح' })
+  folderId?: string;
 }
+

@@ -12,8 +12,9 @@ import {
   CreateProductRequest,
   UpdateProductRequest,
   UploadImageResponse,
-  FolderQueryDto,
-  FolderStructureResponse,
+  FolderContentsResponse,
+  CreateFolderRequest,
+  RealFolder,
 } from "../types/api.types";
 import {
   User,
@@ -87,13 +88,30 @@ export const uploadImage = async (
   });
 };
 
-export const fetchFolderStructure = async (
-  query: FolderQueryDto = {}
-): Promise<FolderStructureResponse> => {
-  return apiClient.get<FolderStructureResponse>("/images/folders", {
-    params: query,
-  });
+// ===== المجلدات (Real Folder System) =====
+export const getFolderContents = async (
+  folderId: string = "root"
+): Promise<FolderContentsResponse> => {
+  return apiClient.get<FolderContentsResponse>(`/folders/${folderId}/contents`);
 };
+
+export const createFolder = async (
+  data: CreateFolderRequest
+): Promise<RealFolder> => {
+  return apiClient.post<RealFolder>("/folders", data);
+};
+
+export const renameFolder = async (
+  id: string,
+  name: string
+): Promise<RealFolder> => {
+  return apiClient.patch<RealFolder>(`/folders/${id}`, { name });
+};
+
+export const deleteFolder = async (id: string): Promise<void> => {
+  return apiClient.delete<void>(`/folders/${id}`);
+};
+
 
 // ===== الفئات =====
 // استخدام public endpoint للعرض العام

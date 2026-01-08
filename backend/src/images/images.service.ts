@@ -61,7 +61,7 @@ export class ImagesService {
   }
 
   async upload(file: Express.Multer.File, uploadDto: UploadImageDto) {
-    const { productId } = uploadDto;
+    const { productId, folderId } = uploadDto;
     let product: ProductDocument | null = null;
 
     if (productId) {
@@ -96,9 +96,10 @@ export class ImagesService {
         fs.unlinkSync(tempPath);
       }
 
-      // Create image document مرتبط بالمنتج
+      // Create image document مرتبط بالمنتج والمجلد
       const imageDoc = await this.imageModel.create({
         product: product?._id ?? null,
+        folder: folderId || null,
         originalUrl,
         watermarkedUrl: '',
         isWatermarked: false,

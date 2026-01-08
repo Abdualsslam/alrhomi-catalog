@@ -142,28 +142,35 @@ export interface CreateUserRequest {
   role?: string;
 }
 
-// Folder Navigation Types
-export interface FolderQueryDto {
-  categoryId?: string;
-  productId?: string;
-}
-
-export interface FolderItem {
-  id: string;
+// Real Folder System Types
+export interface RealFolder {
+  _id: string;
   name: string;
-  subtitle?: string;
-  type: 'folder' | 'file';
-  isLeaf?: boolean;
-  special?: boolean;
-  // خصائص خاصة بالملفات (الصور)
-  thumbnailUrl?: string;
-  originalUrl?: string;
+  parent: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface FolderStructureResponse {
-  type: 'folders' | 'files';
-  level?: 'category' | 'product';
-  currentPath?: string;
-  items: FolderItem[];
+export interface FolderContentsResponse {
+  folders: RealFolder[];
+  images: ImageData[];
+  breadcrumbs: Array<{ id: string | null; name: string }>;
 }
+
+export interface CreateFolderRequest {
+  name: string;
+  parentId?: string;
+}
+
+export interface ImageData {
+  _id: string;
+  originalUrl: string;
+  watermarkedUrl?: string;
+  folder?: string | null;
+  product?: string | null;
+  isWatermarked: boolean;
+  status: string;
+  createdAt: string;
+}
+
 

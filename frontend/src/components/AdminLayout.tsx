@@ -46,12 +46,12 @@ interface NavItem {
   path: string;
 }
 
-const getNavItems = (t: (key: string) => string): NavItem[] => [
-  { text: t('dashboard'), icon: <DashboardIcon />, path: "/admin" },
-  { text: t('categoriesManagement'), icon: <SettingsIcon />, path: "/admin/categories" },
-  { text: t('productsManagement'), icon: <InventoryIcon />, path: "/admin/products" },
-  { text: t('imagesManagement'), icon: <PhotoLibraryIcon />, path: "/admin/images" },
-  { text: t('usersManagement'), icon: <PeopleIcon />, path: "/admin/users" },
+const navItems: NavItem[] = [
+  { text: "لوحة التحكم", icon: <DashboardIcon />, path: "/admin" },
+  { text: "إدارة التصنيفات", icon: <SettingsIcon />, path: "/admin/categories" },
+  { text: "إدارة المنتجات", icon: <InventoryIcon />, path: "/admin/products" },
+  { text: "إدارة الصور", icon: <PhotoLibraryIcon />, path: "/admin/images" },
+  { text: "إدارة المستخدمين", icon: <PeopleIcon />, path: "/admin/users" },
 ];
 
 const StyledBadge = styled(Badge)(({ theme }) => ({
@@ -132,7 +132,7 @@ const AdminLayout: FC = (): ReactElement => {
       </DrawerHeader>
       <Divider />
       <List>
-        {getNavItems(t).map((item) => (
+        {navItems.map((item) => (
           <ListItemButton
             key={item.text}
             selected={pathname === item.path}

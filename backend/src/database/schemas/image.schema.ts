@@ -12,6 +12,13 @@ export class Image {
   })
   product?: MongooseSchema.Types.ObjectId | null;
 
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'Folder',
+    default: null,
+  })
+  folder?: MongooseSchema.Types.ObjectId | null;
+
   @Prop({ required: true })
   originalUrl: string;
 
