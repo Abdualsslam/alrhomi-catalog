@@ -28,5 +28,4 @@ import { FoldersModule } from './folders/folders.module';
     FoldersModule,
   ],
 })
-export class AppModule { }
-
+export class AppModule {}
