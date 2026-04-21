@@ -162,6 +162,19 @@ export class CategoriesService {
       throw new BadRequestException('لا يمكن حذف فئة لأنها تحتوي على فئات فرعية');
     }
 
+    // Check if category is linked to products
+    const linkedProduct = await this.productModel
+      .findOne({
+        $or: [{ category: id }, { subcategory: id }],
+      })
+      .select('_id productName productCode')
+      .lean()
+      .exec();
+
+    if (linkedProduct) {
+      throw new BadRequestException('لا يمكن حذف فئة لأنها مرتبطة بمنتجات');
+    }
+
     const result = await this.categoryModel.findByIdAndDelete(id).exec();
     if (!result) {
       throw new NotFoundException('الفئة غير موجودة');
