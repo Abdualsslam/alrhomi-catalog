@@ -26,7 +26,7 @@ import {
 
 // ===== إدارة المستخدمين =====
 export const fetchUsers = async (
-  options: FetchOptions = {}
+  options: FetchOptions = {},
 ): Promise<User[]> => {
   return apiClient.get<User[]>("/admin/users", {
     signal: options.signal,
@@ -44,7 +44,7 @@ export const deleteUser = async (id: string): Promise<void> => {
 
 // ===== إحصائيات =====
 export const fetchStats = async (
-  options: FetchOptions = {}
+  options: FetchOptions = {},
 ): Promise<AdminStats> => {
   return apiClient.get<AdminStats>("/admin/stats", {
     signal: options.signal,
@@ -54,7 +54,7 @@ export const fetchStats = async (
 
 // ===== الصور =====
 export const fetchImages = async (
-  params: FetchImagesParams = {}
+  params: FetchImagesParams = {},
 ): Promise<PaginatedResponse<Image>> => {
   const { page = 1, limit = 8, search = "", assigned, ids } = params;
   const queryParams: Record<string, any> = { page, limit };
@@ -81,7 +81,7 @@ export const deleteImage = async (id: string): Promise<void> => {
 };
 
 export const uploadImage = async (
-  formData: FormData
+  formData: FormData,
 ): Promise<UploadImageResponse> => {
   return apiClient.post<UploadImageResponse>("/images/upload", formData, {
     headers: { "Content-Type": "multipart/form-data" },
@@ -90,20 +90,20 @@ export const uploadImage = async (
 
 // ===== المجلدات (Real Folder System) =====
 export const getFolderContents = async (
-  folderId: string = "root"
+  folderId: string = "root",
 ): Promise<FolderContentsResponse> => {
   return apiClient.get<FolderContentsResponse>(`/folders/${folderId}/contents`);
 };
 
 export const createFolder = async (
-  data: CreateFolderRequest
+  data: CreateFolderRequest,
 ): Promise<RealFolder> => {
   return apiClient.post<RealFolder>("/folders", data);
 };
 
 export const renameFolder = async (
   id: string,
-  name: string
+  name: string,
 ): Promise<RealFolder> => {
   return apiClient.patch<RealFolder>(`/folders/${id}`, { name });
 };
@@ -112,11 +112,10 @@ export const deleteFolder = async (id: string): Promise<void> => {
   return apiClient.delete<void>(`/folders/${id}`);
 };
 
-
 // ===== الفئات =====
 // استخدام public endpoint للعرض العام
 export const fetchCategories = async (
-  params: { page?: number; limit?: number } = {}
+  params: { page?: number; limit?: number } = {},
 ): Promise<PaginatedResponse<Category>> => {
   const { page = 1, limit = 10 } = params;
   return apiClient.get<PaginatedResponse<Category>>("/categories", {
@@ -125,14 +124,14 @@ export const fetchCategories = async (
 };
 
 export const createCategory = async (
-  data: CreateCategoryRequest
+  data: CreateCategoryRequest,
 ): Promise<Category> => {
   return apiClient.post<Category>("/admin/categories", data);
 };
 
 export const updateCategory = async (
   id: string,
-  data: UpdateCategoryRequest
+  data: UpdateCategoryRequest,
 ): Promise<Category> => {
   return apiClient.put<Category>(`/admin/categories/${id}`, data);
 };
@@ -144,7 +143,7 @@ export const deleteCategory = async (id: string): Promise<void> => {
 // ===== المنتجات =====
 export const fetchProducts = async (
   params: ProductQueryParams = {}
-): Promise<PaginatedResponse<Product>> => {
+): Promise<PaginatedResponse<Product> & { withoutImagesCount?: number }> => {
   const {
     page = 1,
     limit = 12,
@@ -152,32 +151,37 @@ export const fetchProducts = async (
     category = "",
     model = "",
     productCode = "",
+    hasImages = "",
   } = params;
+
   const queryParams: Record<string, any> = { page, limit };
 
   if (q) queryParams.q = q;
   if (category) queryParams.category = category;
   if (model) queryParams.model = model;
   if (productCode) queryParams.productCode = productCode;
+  if (hasImages) queryParams.hasImages = hasImages;
 
-  return apiClient.get<PaginatedResponse<Product>>("/products", {
-    params: queryParams,
-  });
+  return apiClient.get<PaginatedResponse<Product> & { withoutImagesCount?: number }>(
+    "/products",
+    {
+      params: queryParams,
+    }
+  );
 };
-
 export const fetchProduct = async (id: string): Promise<Product> => {
   return apiClient.get<Product>(`/products/${id}`);
 };
 
 export const createProduct = async (
-  data: CreateProductRequest
+  data: CreateProductRequest,
 ): Promise<Product> => {
   return apiClient.post<Product>("/products", data);
 };
 
 export const updateProduct = async (
   id: string,
-  data: UpdateProductRequest
+  data: UpdateProductRequest,
 ): Promise<Product> => {
   return apiClient.put<Product>(`/products/${id}`, data);
 };

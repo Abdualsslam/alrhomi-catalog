@@ -82,6 +82,7 @@ export interface ProductQueryParams extends PaginationParams {
   productCode?: string;
   tags?: string[];
   search?: string;
+   hasImages?: string;
 }
 
 export interface CreateProductRequest {
