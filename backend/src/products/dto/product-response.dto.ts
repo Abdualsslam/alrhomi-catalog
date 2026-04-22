@@ -61,6 +61,9 @@ export class ProductListResponseDto {
   @ApiProperty({ example: 98 })
   totalItems!: number;
 
+  @ApiProperty({ example: 12 })
+  withoutImagesCount!: number;
+
   @ApiProperty({ type: [ProductListItemDto] })
   items!: ProductListItemDto[];
 }

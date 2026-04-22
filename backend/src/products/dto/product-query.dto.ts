@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -62,4 +62,12 @@ export class ProductQueryDto {
   @IsOptional()
   @IsString()
   productCode?: string;
+
+  @ApiPropertyOptional({
+    description: 'فلترة حسب وجود الصور: true للمنتجات التي لديها صور، false للمنتجات بدون صور',
+    example: 'true',
+  })
+  @IsOptional()
+  @IsString()
+  hasImages?: string;
 }

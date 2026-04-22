@@ -111,15 +111,18 @@ export class ProductsService {
   async findAll(queryDto: ProductQueryDto) {
     const { page = 1, limit = 24, q, category, model, productCode } = queryDto;
 
-    // Build filter
-    const filter: Record<string, unknown> = {};
-    if (category) filter.category = category;
-    if (model) filter.model = model;
-    if (productCode) filter.productCode = productCode;
+    const rawHasImages = queryDto.hasImages;
+    const normalizedHasImages =
+      rawHasImages === 'true' ? true : rawHasImages === 'false' ? false : undefined;
+
+    const baseFilter: Record<string, unknown> = {};
+    if (category) baseFilter.category = category;
+    if (model) baseFilter.model = model;
+    if (productCode) baseFilter.productCode = productCode;
 
     if (q) {
       const regex = new RegExp(q.trim(), 'i');
-      filter.$or = [
+      baseFilter.$or = [
         { productName: regex },
         { description: regex },
         { productCode: regex },
@@ -128,13 +131,47 @@ export class ProductsService {
       ];
     }
 
-    // Get total count
-    const totalItems = await this.productModel.countDocuments(filter);
+    const combineFilters = (
+      filter: Record<string, unknown>,
+      extraCondition?: Record<string, unknown>,
+    ): Record<string, unknown> => {
+      if (!extraCondition) return filter;
+      if (Object.keys(filter).length === 0) return extraCondition;
+      return { $and: [filter, extraCondition] };
+    };
+
+    const linkedImageProductIdsRaw = await this.imageModel
+      .distinct('product', { product: { $ne: null } })
+      .exec();
+
+    const linkedImageProductIds = linkedImageProductIdsRaw
+      .filter((id) => id != null)
+      .map((id) => new Types.ObjectId(String(id)));
+
+    const withImagesCondition: Record<string, unknown> = {
+      $or: [{ 'images.0': { $exists: true } }, { _id: { $in: linkedImageProductIds } }],
+    };
+
+    const withoutImagesCondition: Record<string, unknown> = {
+      $and: [{ 'images.0': { $exists: false } }, { _id: { $nin: linkedImageProductIds } }],
+    };
+
+    const finalFilter =
+      normalizedHasImages === true
+        ? combineFilters(baseFilter, withImagesCondition)
+        : normalizedHasImages === false
+          ? combineFilters(baseFilter, withoutImagesCondition)
+          : baseFilter;
+
+    const withoutImagesCount = await this.productModel.countDocuments(
+      combineFilters(baseFilter, withoutImagesCondition),
+    );
+
+    const totalItems = await this.productModel.countDocuments(finalFilter);
     const totalPages = Math.ceil(totalItems / limit);
 
-    // Get products with category
     const products = await this.productModel
-      .find(filter)
+      .find(finalFilter)
       .populate('category', 'name')
       .populate('subcategory', 'name')
       .sort({ createdAt: -1 })
@@ -142,7 +179,6 @@ export class ProductsService {
       .limit(limit)
       .exec();
 
-    // Add image count for each product
     const items = await Promise.all(
       products.map(async (product) => {
         const categoryName = extractCategoryName(product.category);
@@ -153,6 +189,7 @@ export class ProductsService {
         const similarProductIds = Array.isArray(product.similarProducts)
           ? product.similarProducts.map((id) => id.toString())
           : [];
+
         const imageCount =
           imageIds.length > 0
             ? imageIds.length
@@ -178,9 +215,14 @@ export class ProductsService {
       }),
     );
 
-    return { page, totalPages, totalItems, items };
+    return {
+      page,
+      totalPages,
+      totalItems,
+      withoutImagesCount,
+      items,
+    };
   }
-
   async findOne(id: string) {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('معرّف غير صالح');
