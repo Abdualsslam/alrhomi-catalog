@@ -11,9 +11,11 @@ import {
   Stack,
   Paper,
   Button,
+  Alert,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Refresh } from "@mui/icons-material";
 
 import SearchBar from "../components/SearchBar";
 import Filters from "../components/Filters";
@@ -59,7 +61,9 @@ export default function CatalogPage() {
   });
 
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>("");
   const [categories, setCategories] = useState<Category[]>([]);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const limit = isMdUp ? 12 : isSmUp ? 8 : 6;
 
@@ -90,6 +94,8 @@ export default function CatalogPage() {
   useEffect(() => {
     const timer = window.setTimeout(async () => {
       setLoading(true);
+      setError("");
+
       try {
         const res = await searchProducts({
           q: filters.q,
@@ -105,13 +111,19 @@ export default function CatalogPage() {
         });
       } catch (err) {
         console.error("Fetch products failed", err);
+        setError("تعذر تحميل المنتجات حاليًا. حاول مرة أخرى.");
+        setData({
+          items: [],
+          totalPages: 1,
+          totalItems: 0,
+        });
       } finally {
         setLoading(false);
       }
     }, 300);
 
     return () => window.clearTimeout(timer);
-  }, [filters.q, filters.category, page, limit]);
+  }, [filters.q, filters.category, page, limit, reloadKey]);
 
   useEffect(() => {
     if (data.items.length > 0) {
@@ -157,6 +169,10 @@ export default function CatalogPage() {
     }
 
     setSearchParams(nextParams);
+  };
+
+  const handleRetry = () => {
+    setReloadKey((prev) => prev + 1);
   };
 
   const pageTitle = filters.category
@@ -278,6 +294,29 @@ export default function CatalogPage() {
                       </Grid>
                     ))}
                   </Grid>
+                ) : error ? (
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      textAlign: "center",
+                      py: 8,
+                      px: 3,
+                      borderRadius: 4,
+                      border: `1px solid ${theme.palette.divider}`,
+                    }}
+                  >
+                    <Alert severity="error" sx={{ mb: 3, textAlign: "right" }}>
+                      {error}
+                    </Alert>
+                    <Button
+                      variant="contained"
+                      startIcon={<Refresh />}
+                      onClick={handleRetry}
+                      sx={{ borderRadius: 3, px: 4 }}
+                    >
+                      إعادة المحاولة
+                    </Button>
+                  </Paper>
                 ) : data.items.length === 0 ? (
                   <Paper
                     elevation={0}
