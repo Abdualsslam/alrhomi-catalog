@@ -377,6 +377,7 @@ export class ProductsService {
         isWatermarked: firstImage?.isWatermarked || false,
         imageId: firstImage?._id || null,
         createdAt: product.get('createdAt') as Date,
+        updatedAt: product.get('updatedAt') as Date,
       };
     });
 

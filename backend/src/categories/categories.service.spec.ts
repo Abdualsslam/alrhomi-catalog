@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { CategoriesService } from './categories.service';
+import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { Types } from 'mongoose';
 
 describe('CategoriesService', () => {
@@ -74,6 +75,65 @@ describe('CategoriesService', () => {
     it('should return categories', async () => {
       const result = await service.findAll();
       expect(result.items).toBeDefined();
+    });
+  });
+
+  describe('create', () => {
+    const createDto = {
+      name: 'New Category',
+    };
+
+    it('should create a category successfully', async () => {
+      const result = await service.create(createDto);
+      expect(result).toBeDefined();
+      expect(mockCategoryModel.create).toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException if category already exists', async () => {
+      mockCategoryModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(mockCategory),
+      });
+      await expect(service.create(createDto)).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('update', () => {
+    const updateDto = {
+      name: 'Updated Category',
+    };
+
+    it('should update a category successfully', async () => {
+      const id = new Types.ObjectId().toHexString();
+      const result = await service.update(id, updateDto);
+      expect(result).toBeDefined();
+      expect(mockCategoryModel.findByIdAndUpdate).toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException if category not found', async () => {
+      mockCategoryModel.findByIdAndUpdate.mockReturnValue({
+        populate: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue(null),
+      });
+      await expect(service.update(new Types.ObjectId().toHexString(), updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove a category successfully', async () => {
+      const id = new Types.ObjectId().toHexString();
+      const result = await service.remove(id);
+      expect(result).toEqual({ message: 'تم حذف الفئة' });
+      expect(mockCategoryModel.findByIdAndDelete).toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if category has children', async () => {
+      mockCategoryModel.findOne.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({ _id: 'childId' }),
+      });
+      const id = new Types.ObjectId().toHexString();
+      await expect(service.remove(id)).rejects.toThrow(BadRequestException);
     });
   });
 });

@@ -10,6 +10,12 @@ import { LoginDto } from './dto/login.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { UserPayload } from '../common/interfaces/user.interface';
 
+interface LoginResponse {
+  token: string;
+  refreshToken: string;
+  role: 'rep' | 'admin';
+}
+
 @Injectable()
 export class AuthService {
   private readonly saltRounds = 10;
@@ -40,13 +46,13 @@ export class AuthService {
       username,
       email,
       password: hashedPassword,
-      role,
+      role: role || 'rep',
     });
 
     return { message: 'تم إنشاء الحساب' };
   }
 
-  async login(loginDto: LoginDto): Promise<AuthResponseDto> {
+  async login(loginDto: LoginDto): Promise<LoginResponse> {
     const { username, password } = loginDto;
 
     console.log(`[AuthService] Login attempt for username: ${username}`);
@@ -95,10 +101,10 @@ export class AuthService {
       token,
       refreshToken,
       role: user.role as 'rep' | 'admin',
-    } as any;
+    };
   }
 
-  async refreshToken(oldRefreshToken: string): Promise<any> {
+  async refreshToken(oldRefreshToken: string): Promise<LoginResponse> {
     try {
       const payload = this.jwtService.verify(oldRefreshToken);
 

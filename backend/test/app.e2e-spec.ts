@@ -1,4 +1,4 @@
-import {  Test, TestingModule } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
@@ -24,5 +24,27 @@ describe('AppController (e2e)', () => {
       .post('/api/auth/login')
       .send({ username: 'invalid', password: 'invalid' })
       .expect(401);
+  });
+
+  it('/api/products (GET) - should return products list', () => {
+    return request(app.getHttpServer())
+      .get('/api/products')
+      .expect(200)
+      .then((response) => {
+        expect(response.body.items).toBeDefined();
+      });
+  });
+
+  it('/api/categories (GET) - should return categories list', () => {
+    return request(app.getHttpServer())
+      .get('/api/categories')
+      .expect(200)
+      .then((response) => {
+        expect(response.body.items).toBeDefined();
+      });
+  });
+
+  it('/api/health (GET) - should return health status', () => {
+    return request(app.getHttpServer()).get('/api/health').expect(200);
   });
 });

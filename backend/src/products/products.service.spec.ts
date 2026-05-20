@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { ProductsService } from './products.service';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { Types } from 'mongoose';
 
 describe('ProductsService', () => {
@@ -17,6 +17,7 @@ describe('ProductsService', () => {
     images: [],
     get: jest.fn().mockReturnValue(new Date()),
     save: jest.fn(),
+    populate: jest.fn().mockReturnThis(),
   };
 
   beforeEach(async () => {
@@ -111,6 +112,65 @@ describe('ProductsService', () => {
       await expect(service.findOne(new Types.ObjectId().toHexString())).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('create', () => {
+    const createDto = {
+      productName: 'New Product',
+      productCode: 'NP001',
+      category: new Types.ObjectId().toHexString(),
+    };
+
+    it('should create a product successfully', async () => {
+      const result = await service.create(createDto);
+      expect(result).toBeDefined();
+      expect(mockProductModel.create).toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException on duplicate code', async () => {
+      mockProductModel.create.mockRejectedValue({ code: 11000 });
+      await expect(service.create(createDto)).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('update', () => {
+    const updateDto = {
+      productName: 'Updated Name',
+    };
+
+    it('should update a product successfully', async () => {
+      const id = new Types.ObjectId().toHexString();
+      const result = await service.update(id, updateDto);
+      expect(result).toBeDefined();
+      expect(mockProductModel.findByIdAndUpdate).toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException if product to update not found', async () => {
+      mockProductModel.findByIdAndUpdate.mockReturnValue({
+        populate: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue(null),
+      });
+      await expect(service.update(new Types.ObjectId().toHexString(), updateDto)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove a product successfully', async () => {
+      const id = new Types.ObjectId().toHexString();
+      const result = await service.remove(id);
+      expect(result).toEqual({ message: 'تم حذف المنتج' });
+      expect(mockProductModel.findByIdAndDelete).toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if product has images', async () => {
+      mockImageModel.countDocuments.mockReturnValue({
+        exec: jest.fn().mockResolvedValue(5),
+      });
+      const id = new Types.ObjectId().toHexString();
+      await expect(service.remove(id)).rejects.toThrow(BadRequestException);
     });
   });
 });
