@@ -1,5 +1,4 @@
-// src/components/SearchBar.tsx
-import { TextField, Box, InputAdornment, IconButton, SxProps, Theme, TextFieldProps, alpha, useTheme } from "@mui/material";
+import { TextField, Box, InputAdornment, IconButton, SxProps, Theme, TextFieldProps } from "@mui/material";
 import { Search, Close } from "@mui/icons-material";
 import { useState, useEffect, useRef, FC, ReactElement } from "react";
 import debounce from "lodash.debounce";
@@ -20,34 +19,19 @@ const SearchBar: FC<SearchBarComponentProps> = ({
   sx,
   ...textFieldProps
 }): ReactElement => {
-  const theme = useTheme();
   const [inputValue, setInputValue] = useState<string>(value);
   const debounceRef = useRef<ReturnType<typeof debounce> | null>(null);
 
   useEffect(() => {
-    // انشئ الدالة المؤجلة (debounced)
     debounceRef.current = debounce((v: string) => {
       onSearch(v);
     }, 300);
-
-    return () => {
-      debounceRef.current?.cancel();
-    };
+    return () => debounceRef.current?.cancel();
   }, [onSearch]);
 
   useEffect(() => {
     setInputValue(value);
   }, [value]);
-
-  const handleSearch = (v: string): void => {
-    setInputValue(v);
-    debounceRef.current?.(v);
-  };
-
-  const clearSearch = (): void => {
-    setInputValue("");
-    onSearch("");
-  };
 
   return (
     <Box sx={sx}>
@@ -55,49 +39,31 @@ const SearchBar: FC<SearchBarComponentProps> = ({
         fullWidth
         placeholder={placeholder || "ابحث هنا..."}
         value={inputValue}
-        onChange={(e) => handleSearch(e.target.value)}
-        variant="outlined"
+        onChange={(e) => {
+          setInputValue(e.target.value);
+          debounceRef.current?.(e.target.value);
+        }}
+        variant="standard"
         InputProps={{
+          disableUnderline: true,
           startAdornment: (
             <InputAdornment position="start">
-              <Search color="primary" fontSize="large" />
+              <Search sx={{ color: "var(--accent-primary)", fontSize: 28 }} />
             </InputAdornment>
           ),
-          endAdornment: value && (
+          endAdornment: inputValue && (
             <InputAdornment position="end">
-              <IconButton
-                onClick={clearSearch}
-                size="small"
-                aria-label="مسح البحث"
-                sx={{ "&:hover": { bgcolor: "action.hover" } }}
-              >
-                <Close fontSize="small" />
+              <IconButton onClick={() => { setInputValue(""); onSearch(""); }} size="small">
+                <Close sx={{ color: "var(--text-secondary)" }} />
               </IconButton>
             </InputAdornment>
           ),
           sx: {
-            borderRadius: 4,
-            height: 64,
-            fontSize: "1.1rem",
-            bgcolor: "background.paper",
-            transition: "all 0.3s ease",
-            "& fieldset": {
-              borderColor: "transparent",
-            },
-            "&:hover": {
-              bgcolor: "background.paper",
-              "& fieldset": {
-                borderColor: "primary.main",
-                opacity: 0.5,
-              },
-            },
-            "&.Mui-focused": {
-              boxShadow: `0 0 0 4px ${alpha(theme.palette.primary.main, 0.1)}`,
-              "& fieldset": {
-                borderColor: "primary.main",
-                borderWidth: 2,
-              },
-            },
+            px: 3,
+            py: 1,
+            color: "white",
+            fontSize: "1.2rem",
+            "& input::placeholder": { color: "rgba(255,255,255,0.3)", opacity: 1 }
           },
         }}
         {...textFieldProps}

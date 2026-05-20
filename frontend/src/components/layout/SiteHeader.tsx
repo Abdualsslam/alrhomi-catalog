@@ -9,7 +9,7 @@ import {
   IconButton,
 } from "@mui/material";
 import { NavLink, useNavigate } from "react-router-dom";
-import { WhatsApp, PhoneInTalk } from "@mui/icons-material";
+import { WhatsApp } from "@mui/icons-material";
 import { FC, ReactElement } from "react";
 import { getWhatsAppUrl } from "../../utils/whatsapp";
 
@@ -21,81 +21,36 @@ interface NavLinkItem {
 const navLinks: NavLinkItem[] = [
   { label: "الرئيسية", path: "/" },
   { label: "المنتجات", path: "/catalog" },
-  { label: "حول الشركة", path: "/#about" },
+  { label: "الفئات", path: "/categories" },
 ];
 
 const SiteHeader: FC = (): ReactElement => {
   const navigate = useNavigate();
 
   return (
-    <Box component="header" sx={{ bgcolor: "background.paper" }}>
-      <Box
-        sx={{
-          bgcolor: "primary.main",
-          color: "primary.contrastText",
-          py: 1.5,
-        }}
-      >
-        <Container
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: 2,
-          }}
-        >
-          <Typography 
-            variant="body2" 
-            sx={{ 
-              fontWeight: 500,
-              display: { xs: "none", sm: "block" }
-            }}
-          >
-            شركة علي سعيد المرحومي الغامدي وأبنائه المحدودة منذ 1955
-          </Typography>
-          <Stack 
-            direction="row" 
-            spacing={1.5} 
-            alignItems="center"
-            component="a"
-            href="tel:0126477825"
-            sx={{
-              textDecoration: "none",
-              color: "inherit",
-              transition: "all 0.3s ease",
-              "&:hover": {
-                opacity: 0.9,
-              },
-            }}
-          >
-            <PhoneInTalk fontSize="small" />
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              012 647 7825
-            </Typography>
-          </Stack>
-        </Container>
-      </Box>
-
+    <Box sx={{ position: "sticky", top: 0, zIndex: 1100, p: { xs: 1, md: 2 } }}>
       <AppBar
-        position="sticky"
-        color="inherit"
-        elevation={1}
+        position="static"
+        className="glass"
+        elevation={0}
         sx={{
-          borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-          backdropFilter: "blur(10px)",
+          background: "rgba(255, 255, 255, 0.05)",
+          backdropFilter: "blur(20px)",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+          borderRadius: { xs: "16px", md: "24px" },
+          color: "white",
         }}
       >
         <Toolbar
           component={Container}
-          disableGutters
+          maxWidth="lg"
           sx={{ 
             display: "flex", 
             justifyContent: "space-between", 
-            gap: 3,
-            py: 1.5,
+            py: 1
           }}
         >
+          {/* Logo Section */}
           <Stack 
             direction="row" 
             spacing={2} 
@@ -106,27 +61,18 @@ const SiteHeader: FC = (): ReactElement => {
             <Box
               component="img"
               src="/logo.webp"
-              alt="شعار الرحومي"
-              sx={{
-                width: 50,
-                height: 50,
-                objectFit: "contain",
-              }}
+              alt="Alrhomi Logo"
+              sx={{ width: 45, height: 45, filter: "brightness(0) invert(1)" }}
             />
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                المرحومي 
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                معدات ومستلزمات المطابخ الاحترافية
-              </Typography>
-            </Box>
+            <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: -0.5, display: { xs: "none", sm: "block" } }}>
+              ALRHOMI
+            </Typography>
           </Stack>
 
+          {/* Navigation Links */}
           <Stack
             direction="row"
-            spacing={2}
-            alignItems="center"
+            spacing={1}
             sx={{ display: { xs: "none", md: "flex" } }}
           >
             {navLinks.map((link) => (
@@ -134,13 +80,17 @@ const SiteHeader: FC = (): ReactElement => {
                 key={link.path}
                 component={NavLink}
                 to={link.path}
-                color="inherit"
                 sx={{
-                  borderRadius: 3,
+                  color: "var(--text-secondary)",
+                  borderRadius: "12px",
                   px: 2,
+                  fontWeight: 500,
+                  transition: "all 0.3s ease",
+                  "&:hover": { color: "white", background: "rgba(255,255,255,0.05)" },
                   "&.active": {
-                    color: "primary.main",
-                    fontWeight: 600,
+                    color: "white",
+                    background: "rgba(255, 255, 255, 0.1)",
+                    fontWeight: 700,
                   },
                 }}
               >
@@ -149,43 +99,23 @@ const SiteHeader: FC = (): ReactElement => {
             ))}
           </Stack>
 
-          <Stack direction="row" spacing={4} alignItems="center" sx={{ gap: 3 }}>
+          {/* Action Buttons */}
+          <Stack direction="row" spacing={2} alignItems="center">
             <Button
-              variant="outlined"
-              color="primary"
+              className="btn-premium"
+              size="small"
               onClick={() => navigate("/catalog")}
-              sx={{
-                borderRadius: 3,
-                px: 3,
-                py: 0.75,
-                borderWidth: 1.5,
-                fontWeight: 600,
-                transition: "all 0.3s ease",
-                "&:hover": {
-                  borderWidth: 1.5,
-                  bgcolor: "primary.main",
-                  color: "white",
-                  transform: "translateY(-2px)",
-                },
-              }}
+              sx={{ display: { xs: "none", sm: "inline-flex" }, px: 3 }}
             >
-              المنتجات
+              اكتشف الآن
             </Button>
+            
             <IconButton
-              color="success"
-              aria-label="تواصل عبر واتساب"
               onClick={() => window.open(getWhatsAppUrl(), "_blank")}
               sx={{
-                bgcolor: "success.main",
-                color: "white",
-                width: 44,
-                height: 44,
-                transition: "all 0.3s ease",
-                "&:hover": {
-                  bgcolor: "success.dark",
-                  transform: "translateY(-2px)",
-                  boxShadow: 2,
-                },
+                background: "rgba(37, 211, 102, 0.15)",
+                color: "#25D366",
+                "&:hover": { background: "rgba(37, 211, 102, 0.25)" }
               }}
             >
               <WhatsApp />

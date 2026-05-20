@@ -1,14 +1,10 @@
-// src/components/Filters.tsx
 import {
   Box,
-  Paper,
   Typography,
   Chip,
   Button,
   Stack,
   Divider,
-  SxProps,
-  Theme,
 } from "@mui/material";
 import { useMemo, FC, ReactElement } from "react";
 import { ClearAll } from "@mui/icons-material";
@@ -25,23 +21,13 @@ interface FiltersProps {
   values: FilterValues;
   onChange?: (payload: Partial<FilterValues>) => void;
   onReset?: () => void;
-  sx?: SxProps<Theme>;
 }
-
-interface FieldLabels {
-  [key: string]: string;
-}
-
-const fieldLabels: FieldLabels = {
-  category: "الفئة",
-};
 
 const Filters: FC<FiltersProps> = ({
   categories = [],
   values,
   onChange,
   onReset,
-  sx,
 }): ReactElement => {
 
   const activeFilters = useMemo(() => {
@@ -49,141 +35,112 @@ const Filters: FC<FiltersProps> = ({
     return Object.entries(values).filter(
       ([key, value]) =>
         value &&
-        !["q"].includes(key) &&
+        !["q", "sortBy", "sortOrder"].includes(key) &&
         (Array.isArray(value) ? value.some(Boolean) : value !== "")
     );
   }, [values]);
 
-  const handleChange = (payload: Partial<FilterValues>): void => {
-    onChange?.(payload);
-  };
-
   return (
-    <Paper
-      elevation={0}
-      className="glass-light"
-      sx={{
-        p: 4,
-        borderRadius: 5,
-        position: "sticky",
-        top: 100,
-        border: "1px solid",
-        borderColor: "divider",
-        ...sx,
-      }}
-    >
-      <Stack spacing={4}>
-        <Box>
-          <Typography variant="h5" sx={{ mb: 1, fontWeight: 800 }}>
-            التصفية
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-            اكتشف المنتجات حسب الفئات
-          </Typography>
-        </Box>
+    <Stack spacing={4}>
+      <Box>
+        <Typography variant="h5" sx={{ mb: 1, fontWeight: 800 }}>
+          التصفية
+        </Typography>
+        <Typography variant="body2" sx={{ color: "var(--text-secondary)", lineHeight: 1.6 }}>
+          اكتشف المنتجات حسب الفئات
+        </Typography>
+      </Box>
 
-        <Box>
-          <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 700, color: "primary.main" }}>
-            الفئات الرئيسية
-          </Typography>
-          <Stack spacing={1.5}>
-            <Chip
-              label="جميع المنتجات"
-              onClick={() => handleChange({ category: "" })}
-              variant={!values?.category ? "filled" : "outlined"}
-              color={!values?.category ? "primary" : "default"}
+      <Box>
+        <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700, color: "var(--accent-secondary)", textTransform: "uppercase", letterSpacing: 1 }}>
+          الفئات الرئيسية
+        </Typography>
+        <Stack spacing={1}>
+          <Box
+            onClick={() => onChange?.({ category: "" })}
+            sx={{
+              p: 1.5,
+              borderRadius: "12px",
+              cursor: "pointer",
+              transition: "all 0.3s ease",
+              background: !values?.category ? "rgba(59, 130, 246, 0.1)" : "transparent",
+              border: "1px solid",
+              borderColor: !values?.category ? "rgba(59, 130, 246, 0.4)" : "transparent",
+              color: !values?.category ? "var(--accent-primary)" : "var(--text-secondary)",
+              "&:hover": {
+                background: "rgba(255, 255, 255, 0.05)",
+                color: "white"
+              }
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: !values?.category ? 700 : 500 }}>
+              جميع المنتجات
+            </Typography>
+          </Box>
+          {categories.map((category) => (
+            <Box
+              key={category._id}
+              onClick={() => onChange?.({ category: category._id })}
               sx={{
-                borderRadius: 2,
-                py: 2.5,
-                fontSize: "0.95rem",
-                fontWeight: !values?.category ? 700 : 500,
-                justifyContent: "center",
+                p: 1.5,
+                borderRadius: "12px",
+                cursor: "pointer",
                 transition: "all 0.3s ease",
+                background: values?.category === category._id ? "rgba(59, 130, 246, 0.1)" : "transparent",
+                border: "1px solid",
+                borderColor: values?.category === category._id ? "rgba(59, 130, 246, 0.4)" : "transparent",
+                color: values?.category === category._id ? "var(--accent-primary)" : "var(--text-secondary)",
                 "&:hover": {
-                  transform: "translateX(-4px)",
-                  bgcolor: !values?.category ? "primary.dark" : "action.hover",
-                },
+                  background: "rgba(255, 255, 255, 0.05)",
+                  color: "white"
+                }
               }}
-            />
-            {categories.map((category) => {
-              const isChild = !!category.parent;
-              const isActive = values?.category === category._id;
-              const parentName =
-                category.parent && typeof category.parent === "object"
-                  ? category.parent.name
-                  : null;
-              
-              if (isChild && parentName) return null; // Hide subcategories for now or handle differently
+            >
+              <Typography variant="body2" sx={{ fontWeight: values?.category === category._id ? 700 : 500 }}>
+                {category.name}
+              </Typography>
+            </Box>
+          ))}
+        </Stack>
+      </Box>
 
-              return (
+      {!!activeFilters.length && (
+        <>
+          <Divider sx={{ borderColor: "rgba(255,255,255,0.1)" }} />
+          <Stack spacing={2}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+              الفلاتر النشطة
+            </Typography>
+            <Stack direction="row" gap={1} flexWrap="wrap">
+              {activeFilters.map(([field, value]) => (
                 <Chip
-                  key={category._id}
-                  label={category.name}
-                  onClick={() => handleChange({ category: category._id })}
-                  variant={isActive ? "filled" : "outlined"}
-                  color={isActive ? "primary" : "default"}
+                  key={field}
+                  label={value}
+                  onDelete={() => onChange?.({ [field]: "" })}
                   sx={{
-                    borderRadius: 2,
-                    py: 2.5,
-                    fontSize: "0.95rem",
-                    fontWeight: isActive ? 700 : 500,
-                    justifyContent: "center",
-                    transition: "all 0.3s ease",
-                    "&:hover": {
-                      transform: "translateX(-4px)",
-                      bgcolor: isActive ? "primary.dark" : "action.hover",
-                    },
+                    borderRadius: "8px",
+                    background: "rgba(255,255,255,0.05)",
+                    color: "white",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    "& .MuiChip-deleteIcon": { color: "rgba(255,255,255,0.5)" }
                   }}
                 />
-              );
-            })}
-          </Stack>
-        </Box>
-
-        {!!activeFilters.length && (
-          <>
-            <Divider />
-            <Stack spacing={2}>
-              <Typography variant="subtitle1">
-                الفلاتر النشطة
-              </Typography>
-              <Stack direction="row" gap={1} flexWrap="wrap">
-                {activeFilters.map(([field, value]) => {
-                  const label = fieldLabels[field] || field;
-                  return (
-                    <Chip
-                      key={field}
-                      label={`${label}: ${value}`}
-                      onDelete={() =>
-                        handleChange({
-                          [field]: typeof value === "string" ? "" : undefined,
-                        })
-                      }
-                      sx={{
-                        borderRadius: 3,
-                      }}
-                    />
-                  );
-                })}
-              </Stack>
-              <Button
-                variant="outlined"
-                color="error"
-                fullWidth
-                startIcon={<ClearAll />}
-                onClick={onReset}
-                sx={{
-                  borderRadius: 3,
-                  py: 1.2,
-                }}
-              >
-                مسح جميع الفلاتر
-              </Button>
+              ))}
             </Stack>
-          </>
-        )}
-      </Stack>
-    </Paper>
+            <Button
+              variant="text"
+              color="error"
+              fullWidth
+              startIcon={<ClearAll />}
+              onClick={onReset}
+              sx={{ borderRadius: "12px", py: 1 }}
+            >
+              مسح الكل
+            </Button>
+          </Stack>
+        </>
+      )}
+    </Stack>
   );
 };
 
