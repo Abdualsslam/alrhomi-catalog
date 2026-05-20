@@ -20,7 +20,7 @@ export class AdminStatsService {
   async getStats() {
     try {
       console.log(`[${new Date().toISOString()}] AdminStats: Starting stats calculation`);
-      
+
       // Products statistics (الأساس)
       const totalProducts = await this.productModel.countDocuments().exec();
       console.log(`[${new Date().toISOString()}] AdminStats: Total products: ${totalProducts}`);
@@ -34,12 +34,17 @@ export class AdminStatsService {
           { $count: 'count' },
         ])
         .exec();
-      const productsWithImages = productsWithImagesResult.length > 0 ? productsWithImagesResult[0].count : 0;
-      console.log(`[${new Date().toISOString()}] AdminStats: Products with images: ${productsWithImages}`);
+      const productsWithImages =
+        productsWithImagesResult.length > 0 ? productsWithImagesResult[0].count : 0;
+      console.log(
+        `[${new Date().toISOString()}] AdminStats: Products with images: ${productsWithImages}`,
+      );
 
       // Products without images
       const productsWithoutImages = totalProducts - productsWithImages;
-      console.log(`[${new Date().toISOString()}] AdminStats: Products without images: ${productsWithoutImages}`);
+      console.log(
+        `[${new Date().toISOString()}] AdminStats: Products without images: ${productsWithoutImages}`,
+      );
 
       // Images statistics (تابعة للمنتجات)
       const totalImages = await this.imageModel.countDocuments().exec();

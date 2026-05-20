@@ -1,4 +1,13 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Res, Req, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Res,
+  Req,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import {
@@ -55,8 +64,8 @@ export class AuthController {
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponseDto> {
-    const { token, refreshToken, role } = await this.authService.login(loginDto) as any;
-    
+    const { token, refreshToken, role } = (await this.authService.login(loginDto)) as any;
+
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -76,14 +85,21 @@ export class AuthController {
     description: 'تم تجديد التوكن بنجاح',
     type: AuthResponseDto,
   })
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<AuthResponseDto> {
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponseDto> {
     const refreshToken = req.cookies?.refreshToken;
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token missing');
     }
 
-    const { token, refreshToken: newRefreshToken, role } = await this.authService.refreshToken(refreshToken);
-    
+    const {
+      token,
+      refreshToken: newRefreshToken,
+      role,
+    } = await this.authService.refreshToken(refreshToken);
+
     res.cookie('refreshToken', newRefreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

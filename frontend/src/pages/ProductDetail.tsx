@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, Link as RouterLink, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Container,
@@ -60,6 +61,7 @@ interface RelatedImage {
 }
 
 export default function ProductDetail() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
@@ -86,12 +88,12 @@ export default function ProductDetail() {
         setProduct(res.data);
       } catch (err) {
         console.error("Failed to fetch product", err);
-        setError("تعذر تحميل بيانات المنتج");
+        setError(t('product.load_error'));
       } finally {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     if (!product?._id) return;
@@ -146,39 +148,39 @@ export default function ProductDetail() {
       });
 
       const breadcrumbSchema = getBreadcrumbSchema([
-        { name: "الرئيسية", path: "/" },
-        { name: "الكتالوج", path: "/catalog" },
-        { name: product.productName || "المنتج", path: `/product/${product._id}` },
+        { name: t('home.hero_badge'), path: "/" },
+        { name: t('catalog.title'), path: "/catalog" },
+        { name: product.productName || t('product.details'), path: `/product/${product._id}` },
       ]);
 
       injectMultipleSchemas([productSchema, breadcrumbSchema]);
     }
-  }, [product]);
+  }, [product, t]);
 
   const metaInfo = useMemo(() => {
     if (!product) return [];
     return [
       {
-        label: "الفئة",
+        label: t('product.labels.category'),
         value: product.category,
         icon: Category,
         color: "primary" as const,
       },
       {
-        label: "الموديل",
+        label: t('product.labels.model'),
         value: product.model,
         icon: Style,
         color: "secondary" as const,
       },
       {
-        label: "الكود",
+        label: t('product.labels.code'),
         value: product.productCode || product._id?.slice(-8)?.toUpperCase(),
         icon: QrCode,
         color: "info" as const,
         copyable: true,
       },
       {
-        label: "تاريخ الإنشاء",
+        label: t('product.labels.created_at'),
         value: product.createdAt
           ? new Date(product.createdAt).toLocaleDateString("ar-EG", {
             year: "numeric",
@@ -190,11 +192,11 @@ export default function ProductDetail() {
         color: "success" as const,
       },
     ];
-  }, [product]);
+  }, [product, t]);
 
   const pageTitle = product
-    ? `${product.productName || "منتج"} - كتالوج الرحومي`
-    : "تفاصيل المنتج - كتالوج الرحومي";
+    ? `${product.productName || t('product.details')} - ${t('home.hero_title')}`
+    : `${t('product.details')} - ${t('home.hero_title')}`;
 
   const pageDescription = product
     ? `تفاصيل ${product.productName || "منتج"} في كتالوج الرحومي${product.category ? ` - فئة ${product.category}` : ""
@@ -421,7 +423,7 @@ export default function ProductDetail() {
                       }}
                     >
                       <LocalOffer sx={{ fontSize: { xs: 16, sm: 18 } }} />
-                      التصنيفات
+                      {t('catalog.categories')}
                     </Typography>
                     <Stack
                       direction="row"
@@ -471,7 +473,7 @@ export default function ProductDetail() {
                         fontSize: { xs: "1.1rem", sm: "1.25rem" },
                       }}
                     >
-                      معلومات المنتج
+                      {t('product.specs')}
                     </Typography>
                     <Grid container spacing={{ xs: 1.5, sm: 2 }}>
                       {metaInfo.map(
@@ -551,7 +553,7 @@ export default function ProductDetail() {
                                         </Stack>
 
                                         {item.copyable && (
-                                          <Tooltip title="نسخ الكود">
+                                          <Tooltip title={t('product.copy_code')}>
                                             <IconButton
                                               size="small"
                                               onClick={() => handleCopyCode(item.value!)}
@@ -599,7 +601,7 @@ export default function ProductDetail() {
                           fontSize: { xs: "1.1rem", sm: "1.25rem" },
                         }}
                       >
-                        وصف المنتج
+                        {t('product.description')}
                       </Typography>
                       <Paper
                         elevation={0}
@@ -656,7 +658,7 @@ export default function ProductDetail() {
                       },
                     }}
                   >
-                    استفسر عن المنتج عبر واتساب
+                    {t('product.whatsapp_inquiry')}
                   </Button>
                 </Stack>
               )}
@@ -673,7 +675,7 @@ export default function ProductDetail() {
                   fontSize: { xs: "1.5rem", sm: "2rem", md: "2.125rem" },
                 }}
               >
-                صور المنتج
+                {t('product.gallery')}
               </Typography>
               <ImageGrid
                 images={product.images.map(img => ({
@@ -702,7 +704,7 @@ export default function ProductDetail() {
                 fontSize: { xs: "1.5rem", sm: "2rem", md: "2.125rem" },
               }}
             >
-              منتجات مشابهة
+              {t('product.similar_products')}
             </Typography>
             {relatedLoading ? (
               <Grid container spacing={{ xs: 2, sm: 2.5, md: 3 }}>
@@ -735,7 +737,7 @@ export default function ProductDetail() {
                   variant="body1"
                   sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
                 >
-                  لا توجد منتجات مشابهة حالياً
+                  {t('product.no_related')}
                 </Typography>
               </Paper>
             ) : (
@@ -762,7 +764,7 @@ export default function ProductDetail() {
           variant="filled"
           sx={{ width: "100%", borderRadius: 2 }}
         >
-          تم نسخ الكود بنجاح
+          {t('product.code_copied')}
         </MuiAlert>
       </Snackbar>
 

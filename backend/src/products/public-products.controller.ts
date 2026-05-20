@@ -36,4 +36,3 @@ export class PublicProductsController {
     return product;
   }
 }
-

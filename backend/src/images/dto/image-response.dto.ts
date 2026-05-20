@@ -58,7 +58,9 @@ export class UploadImageResponseDto {
 }
 
 export class DownloadUrlResponseDto {
-  @ApiProperty({ example: 'https://bucket.s3.region.amazonaws.com/originals/file.jpg?X-Amz-Signature=...' })
+  @ApiProperty({
+    example: 'https://bucket.s3.region.amazonaws.com/originals/file.jpg?X-Amz-Signature=...',
+  })
   url!: string;
 }
 

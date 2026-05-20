@@ -23,8 +23,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: UserPayload): Promise<UserPayload> {
     try {
-      console.log(`[${new Date().toISOString()}] JWT validate: Starting validation for sub=${payload?.sub}`);
-      
+      console.log(
+        `[${new Date().toISOString()}] JWT validate: Starting validation for sub=${payload?.sub}`,
+      );
+
       if (!payload || !payload.sub) {
         console.error(`[${new Date().toISOString()}] JWT validate: Invalid payload`, payload);
         throw new UnauthorizedException('حمولة التوكن غير صالحة');
@@ -32,7 +34,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
       console.log(`[${new Date().toISOString()}] JWT validate: Looking up user ${payload.sub}`);
       const user = await this.userModel.findById(payload.sub).exec();
-      
+
       if (!user) {
         console.error(`[${new Date().toISOString()}] JWT validate: User not found`, payload.sub);
         throw new UnauthorizedException('المستخدم غير موجود');

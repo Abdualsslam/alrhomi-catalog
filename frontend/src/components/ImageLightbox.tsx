@@ -189,6 +189,7 @@ const ImageLightbox: React.FC<Props> = ({
             >
               <img
                 src={img.watermarkedUrl || img.originalUrl}
+                alt=""
                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
               />
             </Box>

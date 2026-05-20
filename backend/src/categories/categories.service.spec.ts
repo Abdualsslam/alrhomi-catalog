@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { CategoriesService } from './categories.service';
-import { NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
 
 describe('CategoriesService', () => {

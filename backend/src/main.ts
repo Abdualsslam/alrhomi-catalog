@@ -15,34 +15,37 @@ async function bootstrap() {
   const apiDomain = process.env.API_DOMAIN;
 
   // Use Helmet for security headers
-  app.use(helmet({
-    crossOriginResourcePolicy: false,
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "validator.swagger.io"],
-        connectSrc: ["'self'"],
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:', 'validator.swagger.io'],
+          connectSrc: ["'self'"],
+        },
       },
-    },
-  }));
+    }),
+  );
 
   app.use(cookieParser());
   app.use(compression());
 
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? (process.env.ALLOWED_ORIGINS 
-        ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  const allowedOrigins =
+    process.env.NODE_ENV === 'production'
+      ? process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
         : [process.env.FRONTEND_URL].filter((url): url is string => Boolean(url))
-      )
-    : [true];
+      : [true];
 
   // Enable CORS with better configuration
   app.enableCors({
-    origin: allowedOrigins.length === 1 && allowedOrigins[0] === true
-      ? true
-      : allowedOrigins as string[],
+    origin:
+      allowedOrigins.length === 1 && allowedOrigins[0] === true
+        ? true
+        : (allowedOrigins as string[]),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
@@ -137,7 +140,8 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config, {
     deepScanRoutes: true,
-    operationIdFactory: (controllerKey: string, methodKey: string) => `${controllerKey}_${methodKey}`,
+    operationIdFactory: (controllerKey: string, methodKey: string) =>
+      `${controllerKey}_${methodKey}`,
   });
 
   if (apiDomain) {

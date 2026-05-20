@@ -13,8 +13,9 @@ import {
   InputAdornment,
   Fade,
   CircularProgress,
-  Paper,
   useTheme,
+  alpha,
+  Card,
 } from "@mui/material";
 import {
   Visibility,
@@ -68,7 +69,7 @@ export default function LoginPage() {
       }
     } catch (err) {
       console.error("Login error:", err);
-      setError(t('loginError'));
+      setError(t('login.error'));
     } finally {
       setLoading(false);
     }
@@ -134,7 +135,7 @@ export default function LoginPage() {
       </IconButton>
 
       <Container maxWidth="xs" sx={{ position: "relative", zIndex: 1 }}>
-        <Box
+        <Card
           elevation={0}
           className={mode === 'dark' ? 'glass' : 'glass-light'}
           sx={{
@@ -174,17 +175,17 @@ export default function LoginPage() {
                   fontSize: { xs: "1.75rem", sm: "2.125rem" },
                 }}
               >
-                {t('login')}
+                {t('login.title')}
               </Typography>
               <Typography variant="body1" color="text.secondary">
-                أدخل بياناتك للوصول إلى حسابك
+                {t('login.subtitle')}
               </Typography>
             </Box>
 
             <form onSubmit={handleSubmit}>
               <TextField
                 fullWidth
-                label={t('username')}
+                label={t('login.username')}
                 margin="normal"
                 value={username}
                 onChange={(e) => setUsernameInput(e.target.value)}
@@ -205,7 +206,7 @@ export default function LoginPage() {
 
               <TextField
                 fullWidth
-                label={t('password')}
+                label={t('login.password')}
                 type={showPassword ? "text" : "password"}
                 margin="normal"
                 value={password}
@@ -273,23 +274,24 @@ export default function LoginPage() {
                 {loading ? (
                   <CircularProgress size={24} color="inherit" />
                 ) : (
-                  t('loginButton')
+                  t('login.button')
                 )}
               </Button>
 
             </form>
           </Box>
-
-
-        </Box>
+        </Card>
 
         <Box sx={{ mt: 3, textAlign: "center" }}>
           <Button
             startIcon={<ArrowBack />}
             onClick={() => navigate("/")}
-            sx={{ color: "#fff" }}
+            sx={{
+              color: mode === "dark" ? "white" : "primary.main",
+              fontWeight: 600,
+            }}
           >
-            العودة إلى الصفحة الرئيسية
+            {t('login.back_home')}
           </Button>
         </Box>
       </Container>

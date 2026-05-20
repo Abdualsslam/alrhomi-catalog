@@ -17,10 +17,12 @@ import { SitemapModule } from './sitemap/sitemap.module';
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 30,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 30,
+      },
+    ]),
     ConfigModule,
     DatabaseModule,
     AuthModule,

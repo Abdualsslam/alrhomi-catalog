@@ -84,7 +84,7 @@ export class AuthService {
     const token = this.jwtService.sign(payload, {
       expiresIn: jwtConfig.expiresIn,
     });
-    
+
     const refreshToken = this.jwtService.sign(payload, {
       expiresIn: jwtConfig.refreshExpiresIn,
     });
@@ -101,7 +101,7 @@ export class AuthService {
   async refreshToken(oldRefreshToken: string): Promise<any> {
     try {
       const payload = this.jwtService.verify(oldRefreshToken);
-      
+
       const newPayload: UserPayload = {
         sub: payload.sub,
         role: payload.role,
@@ -111,7 +111,7 @@ export class AuthService {
       const token = this.jwtService.sign(newPayload, {
         expiresIn: jwtConfig.expiresIn,
       });
-      
+
       const refreshToken = this.jwtService.sign(newPayload, {
         expiresIn: jwtConfig.refreshExpiresIn,
       });

@@ -167,29 +167,31 @@ const HomePage: FC = (): ReactElement => {
     })();
   }, []);
 
+  const { t } = useTranslation();
+
   const features = [
     {
       icon: <EmojiEventsOutlined />,
-      title: "خبرة منذ 1955",
-      subtitle: "أكثر من 65 عاماً في قطاع الضيافة",
+      title: t("home.features.experience_title"),
+      subtitle: t("home.features.experience_desc"),
       color: theme.palette.warning.main,
     },
     {
       icon: <VerifiedOutlined />,
-      title: "منتجات معتمدة",
-      subtitle: "جودة عالية تلبي جميع المعايير",
+      title: t("home.features.quality_title"),
+      subtitle: t("home.features.quality_desc"),
       color: theme.palette.success.main,
     },
     {
       icon: <SupportAgentOutlined />,
-      title: "خدمة ما بعد البيع",
-      subtitle: "صيانة وضمان شامل لراحتك",
+      title: t("home.features.support_title"),
+      subtitle: t("home.features.support_desc"),
       color: theme.palette.info.main,
     },
     {
       icon: <LocalShippingOutlined />,
-      title: "توصيل سريع",
-      subtitle: "شحن لجميع أنحاء المملكة",
+      title: t("home.features.shipping_title"),
+      subtitle: t("home.features.shipping_desc"),
       color: theme.palette.secondary.main,
     },
   ];
@@ -304,7 +306,7 @@ const HomePage: FC = (): ReactElement => {
                         fontWeight: 600,
                       }}
                     >
-                      الجودة والثقة منذ عام 1955
+                      {t("home.hero_badge")}
                     </Typography>
                   </Box>
 
@@ -326,7 +328,7 @@ const HomePage: FC = (): ReactElement => {
                       animationDelay: "0.1s",
                     }}
                   >
-                    شركة علي سعيد المرحومي الغامدي وأبنائه المحدودة
+                    {t("home.hero_title")}
                   </Typography>
 
                   {/* Subtitle */}
@@ -341,9 +343,7 @@ const HomePage: FC = (): ReactElement => {
                       opacity: 0,
                     }}
                   >
-                    رائدة في بيع واستيراد معدات وأدوات المطاعم والمطابخ
-                    والكافيهات والفنادق بالجملة، مع التزام راسخ بالجودة وخدمة ما
-                    بعد البيع وضمان الصيانة.
+                    {t("home.hero_subtitle")}
                   </Typography>
 
                   {/* CTA Buttons */}

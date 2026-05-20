@@ -2,7 +2,6 @@ import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
   ApiParam,
   ApiUnauthorizedResponse,
@@ -12,10 +11,7 @@ import {
 import { JobStatusService } from './job-status.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Public } from '../common/decorators/public.decorator';
-import {
-  JobStatusResponseDto,
-  JobStatusSimpleResponseDto,
-} from './dto/job-status-response.dto';
+import { JobStatusResponseDto, JobStatusSimpleResponseDto } from './dto/job-status-response.dto';
 
 @ApiTags('Job Status')
 @Controller()

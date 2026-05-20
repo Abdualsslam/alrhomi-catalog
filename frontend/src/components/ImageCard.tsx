@@ -226,7 +226,7 @@ export default function ImageCard({
                     borderRadius: 1.5,
                   }}
                 />
-                {image.isWatermarked && (
+                {image.watermarkedUrl && (
                   <Typography variant="caption" color="text.secondary" fontWeight={500}>
                     محمي
                   </Typography>

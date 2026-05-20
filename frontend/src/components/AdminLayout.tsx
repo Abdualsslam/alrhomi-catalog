@@ -21,6 +21,7 @@ import {
   useTheme,
   useMediaQuery,
   Badge,
+  alpha,
 } from "@mui/material";
 import {
   Dashboard as DashboardIcon,

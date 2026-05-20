@@ -29,25 +29,25 @@ export class WatermarkProcessor {
     private storageService: StorageService,
   ) {
     this.logger.log('🚀 WatermarkProcessor initialized');
-    
+
     const awsConfig = this.configService.get('aws');
     this.bucket = awsConfig.bucket;
 
     const logoPath = path.resolve(process.cwd(), 'assets', 'logo.png');
     const tmpDir = path.resolve(process.cwd(), 'tmp');
-    
+
     this.logger.log(`📁 Logo path: ${logoPath}`);
     this.logger.log(`📁 Tmp directory: ${tmpDir}`);
     this.logger.log(`🪣 S3 Bucket: ${this.bucket}`);
     this.logger.log(`🌍 S3 Region: ${awsConfig.region}`);
-    
+
     // Check if logo exists
     if (fs.existsSync(logoPath)) {
       this.logger.log('✅ Logo file found');
     } else {
       this.logger.warn(`⚠️ Logo file NOT found at: ${logoPath}`);
     }
-    
+
     // Ensure tmp directory exists
     if (!fs.existsSync(tmpDir)) {
       fs.mkdirSync(tmpDir, { recursive: true });
@@ -61,7 +61,7 @@ export class WatermarkProcessor {
         secretAccessKey: awsConfig.secretAccessKey,
       },
     });
-    
+
     this.logger.log('✅ WatermarkProcessor ready');
   }
 
@@ -291,7 +291,7 @@ export class WatermarkProcessor {
       (logoMeta.width || 0) >= (logoMeta.height || 0)
         ? Math.round(watermarkSize * ((logoMeta.height || 0) / (logoMeta.width || 0)))
         : watermarkSize;
-    
+
     const watermarkBuf = await sharp(logoPath)
       .resize(watermarkW, watermarkH, {
         fit: 'contain',

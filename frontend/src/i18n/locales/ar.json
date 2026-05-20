@@ -39,8 +39,74 @@
   },
   "catalog": {
     "title": "كتالوج المنتجات",
+    "subtitle": "استكشف مجموعتنا الواسعة من المنتجات الفاخرة بأعلى جودة وتصميم",
     "filters": "الفلاتر",
     "sort_by": "ترتيب حسب",
-    "categories": "الفئات"
+    "categories": "الفئات",
+    "search_placeholder": "ابحث عن منتج...",
+    "no_products": "لم يتم العثور على منتجات تطابق بحثك",
+    "whatsapp_order": "اطلب عبر واتساب",
+    "results_found": "تم العثور على {{count}} منتج",
+    "reset_filters": "إعادة ضبط",
+    "apply_filters": "تطبيق",
+    "brand": "الماركة",
+    "all_brands": "كل الماركات",
+    "sort_options": {
+      "newest": "الأحدث أولاً",
+      "oldest": "الأقدم أولاً",
+      "name_asc": "الاسم (أ-ي)",
+      "name_desc": "الاسم (ي-أ)"
+    },
+    "pagination": "صفحة {{current}} / {{total}}"
+  },
+  "home": {
+    "hero_title": "شركة علي سعيد المرحومي الغامدي وأبنائه المحدودة",
+    "hero_subtitle": "رائدة في بيع واستيراد معدات وأدوات المطاعم والمطابخ والكافيهات والفنادق بالجملة، مع التزام راسخ بالجودة وخدمة ما بعد البيع وضمان الصيانة.",
+    "hero_badge": "الجودة والثقة منذ عام 1955",
+    "explore_catalog": "استكشف الكتالوج",
+    "contact_us": "تواصل معنا",
+    "featured_categories": "فئات مختارة",
+    "latest_products": "أحدث المنتجات",
+    "features": {
+      "experience_title": "خبرة منذ 1955",
+      "experience_desc": "أكثر من 65 عاماً في قطاع الضيافة",
+      "quality_title": "منتجات معتمدة",
+      "quality_desc": "جودة عالية تلبي جميع المعايير",
+      "support_title": "خدمة ما بعد البيع",
+      "support_desc": "صيانة وضمان شامل لراحتك",
+      "shipping_title": "توصيل سريع",
+      "shipping_desc": "شحن لجميع أنحاء المملكة"
+    }
+  },
+  "login": {
+    "title": "تسجيل الدخول",
+    "subtitle": "أدخل بياناتك للوصول إلى لوحة التحكم",
+    "username": "اسم المستخدم",
+    "password": "كلمة المرور",
+    "button": "دخول",
+    "error": "خطأ في تسجيل الدخول، يرجى التأكد من البيانات",
+    "back_home": "العودة للرئيسية"
+  },
+  "product": {
+    "details": "تفاصيل المنتج",
+    "description": "الوصف",
+    "specs": "المواصفات",
+    "variants": "الخيارات المتاحة",
+    "related_products": "منتجات ذات صلة",
+    "related_description": "منتجات من نفس الفئة قد تنال إعجابك",
+    "whatsapp_inquiry": "استفسار عبر واتساب",
+    "copy_code": "نسخ الكود",
+    "code_copied": "تم نسخ الكود بنجاح",
+    "load_error": "تعذر تحميل بيانات المنتج",
+    "no_related": "لا توجد منتجات مشابهة حالياً",
+    "gallery": "صور المنتج",
+    "similar_products": "منتجات مشابهة",
+    "labels": {
+      "category": "الفئة",
+      "model": "الموديل",
+      "code": "الكود",
+      "created_at": "تاريخ الإنشاء",
+      "note": "ملاحظات"
+    }
   }
 }

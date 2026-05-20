@@ -18,4 +18,3 @@ export class UploadImageDto {
   @IsMongoId({ message: 'معرّف المجلد غير صالح' })
   folderId?: string;
 }
-

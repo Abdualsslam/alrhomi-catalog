@@ -1,8 +1,12 @@
 import { Controller, Get, Param, Query, NotFoundException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiNotFoundResponse, ApiOkResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiNotFoundResponse, ApiOkResponse } from '@nestjs/swagger';
 import { ImagesService } from './images.service';
 import { ImageQueryDto } from './dto/image-query.dto';
-import { ImageListItemDto, ImageListResponseDto, RelatedImagesResponseDto } from './dto/image-response.dto';
+import {
+  ImageListItemDto,
+  ImageListResponseDto,
+  RelatedImagesResponseDto,
+} from './dto/image-response.dto';
 
 @ApiTags('Images - Public')
 @Controller('public/images')

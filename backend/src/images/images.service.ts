@@ -106,7 +106,10 @@ export class ImagesService {
         try {
           fs.unlinkSync(tempPath);
         } catch (unlinkError) {
-          console.warn(`[${new Date().toISOString()}] Failed to delete temp file ${tempPath}:`, unlinkError);
+          console.warn(
+            `[${new Date().toISOString()}] Failed to delete temp file ${tempPath}:`,
+            unlinkError,
+          );
         }
       }
 
@@ -133,7 +136,9 @@ export class ImagesService {
       const imageId =
         imageDoc._id instanceof Types.ObjectId ? imageDoc._id.toHexString() : String(imageDoc._id);
 
-      console.log(`[${new Date().toISOString()}] Adding job to queue for image ${imageId}, s3Key: ${s3Key}`);
+      console.log(
+        `[${new Date().toISOString()}] Adding job to queue for image ${imageId}, s3Key: ${s3Key}`,
+      );
 
       let job;
       try {
@@ -156,10 +161,15 @@ export class ImagesService {
           },
         );
       } catch (queueError) {
-        console.error(`[${new Date().toISOString()}] Redis queue add failed for ${imageId}:`, queueError);
+        console.error(
+          `[${new Date().toISOString()}] Redis queue add failed for ${imageId}:`,
+          queueError,
+        );
         // Mark image as failed if queue fails
         imageDoc.status = 'failed';
-        await imageDoc.save().catch((e) => console.error('Failed to update image status to failed:', e));
+        await imageDoc
+          .save()
+          .catch((e) => console.error('Failed to update image status to failed:', e));
         throw new BadRequestException(
           `فشل إضافة الصورة إلى طابور المعالجة (Redis). تأكد من تشغيل خدمة Redis. الخطأ: ${
             queueError instanceof Error ? queueError.message : 'خطأ غير معروف'
@@ -167,7 +177,9 @@ export class ImagesService {
         );
       }
 
-      console.log(`[${new Date().toISOString()}] Job added successfully. Job ID: ${job.id}, Image ID: ${imageId}`);
+      console.log(
+        `[${new Date().toISOString()}] Job added successfully. Job ID: ${job.id}, Image ID: ${imageId}`,
+      );
 
       // 5. Update image with job ID
       imageDoc.jobId = job.id.toString();
@@ -230,9 +242,9 @@ export class ImagesService {
 
     const idList = ids
       ? ids
-        .split(',')
-        .map((id) => id.trim())
-        .filter(Boolean)
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean)
       : [];
 
     if (idList.length > 0) {

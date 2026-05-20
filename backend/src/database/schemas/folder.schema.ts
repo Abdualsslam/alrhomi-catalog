@@ -5,11 +5,11 @@ export type FolderDocument = Folder & Document;
 
 @Schema({ timestamps: true })
 export class Folder {
-    @Prop({ required: true })
-    name: string;
+  @Prop({ required: true })
+  name: string;
 
-    @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Folder', default: null })
-    parent: MongooseSchema.Types.ObjectId | null;
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Folder', default: null })
+  parent: MongooseSchema.Types.ObjectId | null;
 }
 
 export const FolderSchema = SchemaFactory.createForClass(Folder);

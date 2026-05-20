@@ -26,10 +26,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import {
-  ProductDetailDto,
-  ProductListResponseDto,
-} from './dto/product-response.dto';
+import { ProductDetailDto, ProductListResponseDto } from './dto/product-response.dto';
 import { MessageResponseDto } from '../common/dto/message-response.dto';
 
 @ApiTags('Products')

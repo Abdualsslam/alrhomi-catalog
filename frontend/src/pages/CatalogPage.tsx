@@ -1,5 +1,5 @@
-// src/pages/CatalogPage.tsx
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Container,
   Box,
@@ -44,6 +44,7 @@ const parsePageParam = (value: string | null): number => {
 };
 
 export default function CatalogPage() {
+  const { t } = useTranslation();
   const theme = useTheme();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -194,8 +195,8 @@ export default function CatalogPage() {
   };
 
   const pageTitle = filters.category
-    ? `${filters.category} - كتالوج الرحومي`
-    : "كتالوج المنتجات - كتالوج الرحومي";
+    ? `${filters.category} - ${t('home.hero_title')}`
+    : `${t('catalog.title')} - ${t('home.hero_title')}`;
 
   const pageDescription = filters.category
     ? `تصفح مجموعة ${filters.category} في كتالوج الرحومي. صور منتجات عالية الجودة مع إمكانية التحميل المباشر.`
@@ -229,14 +230,14 @@ export default function CatalogPage() {
                 color="white"
                 sx={{ fontWeight: 800 }}
               >
-                كتالوج المنتجات
+                {t('catalog.title')}
               </Typography>
               <Typography
                 variant="h6"
                 color="white"
                 sx={{ maxWidth: 700, opacity: 0.9, fontWeight: 400 }}
               >
-                استكشف مجموعتنا الواسعة من المنتجات الفاخرة بأعلى جودة وتصميم
+                {t('catalog.subtitle')}
               </Typography>
             </Stack>
           </Container>
@@ -255,7 +256,7 @@ export default function CatalogPage() {
           <SearchBar
             value={filters.q}
             onSearch={(q: string) => handleFilterChange({ q: q.trim() })}
-            placeholder="ابحث باسم المنتج، اللون أو الكود..."
+            placeholder={t('catalog.search_placeholder')}
           />
         </Paper>
 
@@ -284,35 +285,30 @@ export default function CatalogPage() {
                 }}
               >
                 <Typography variant="h6">
-                  <Box component="span" color="primary.main">
-                    {data.totalItems}
-                  </Box>{" "}
-                  <Box component="span" color="text.secondary">
-                    منتج
-                  </Box>
+                  {t('catalog.results_found', { count: data.totalItems })}
                 </Typography>
 
                 <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
                   <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
-                    صفحة {page} / {data.totalPages}
+                    {t('catalog.pagination', { current: page, total: data.totalPages })}
                   </Typography>
 
                   <FormControl size="small" sx={{ minWidth: 160 }}>
-                    <InputLabel id="sort-select-label">ترتيب حسب</InputLabel>
+                    <InputLabel id="sort-select-label">{t('catalog.sort_by')}</InputLabel>
                     <Select
                       labelId="sort-select-label"
                       value={`${filters.sortBy}-${filters.sortOrder}`}
-                      label="ترتيب حسب"
+                      label={t('catalog.sort_by')}
                       onChange={(e) => {
                         const [sortBy, sortOrder] = e.target.value.split("-");
                         handleFilterChange({ sortBy, sortOrder: sortOrder as "asc" | "desc" });
                       }}
                       sx={{ borderRadius: 2 }}
                     >
-                      <MenuItem value="createdAt-desc">الأحدث أولاً</MenuItem>
-                      <MenuItem value="createdAt-asc">الأقدم أولاً</MenuItem>
-                      <MenuItem value="productName-asc">الاسم (أ-ي)</MenuItem>
-                      <MenuItem value="productName-desc">الاسم (ي-أ)</MenuItem>
+                      <MenuItem value="createdAt-desc">{t('catalog.sort_options.newest')}</MenuItem>
+                      <MenuItem value="createdAt-asc">{t('catalog.sort_options.oldest')}</MenuItem>
+                      <MenuItem value="productName-asc">{t('catalog.sort_options.name_asc')}</MenuItem>
+                      <MenuItem value="productName-desc">{t('catalog.sort_options.name_desc')}</MenuItem>
                     </Select>
                   </FormControl>
                 </Box>

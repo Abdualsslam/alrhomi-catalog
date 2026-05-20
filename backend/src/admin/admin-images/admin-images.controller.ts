@@ -2,7 +2,6 @@ import { Controller, Get, Delete, Param, Query, UseGuards } from '@nestjs/common
 import {
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
   ApiForbiddenResponse,
   ApiUnauthorizedResponse,

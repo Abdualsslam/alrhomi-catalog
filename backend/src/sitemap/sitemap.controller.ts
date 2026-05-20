@@ -18,24 +18,26 @@ export class SitemapController {
   @ApiOperation({ summary: 'Get dynamic sitemap.xml' })
   async getSitemap(@Res() res: Response) {
     const domain = process.env.FRONTEND_URL || 'https://catalog.example.com';
-    
+
     // Fetch categories
     const categoriesData = await this.categoriesService.findAll();
-    const categories = Array.isArray(categoriesData) ? categoriesData : (categoriesData as any).items || [];
-    
+    const categories = Array.isArray(categoriesData)
+      ? categoriesData
+      : (categoriesData as any).items || [];
+
     // Fetch products
     const productsData = await this.productsService.findAllPublic({ limit: 5000, page: 1 });
     const products = productsData.items || [];
 
     // Get latest update date for main pages
     const latestProduct = products[0];
-    const latestDate = latestProduct?.updatedAt 
-      ? new Date(latestProduct.updatedAt).toISOString() 
+    const latestDate = latestProduct?.updatedAt
+      ? new Date(latestProduct.updatedAt).toISOString()
       : new Date().toISOString();
 
     const xmlHeader = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
     const xmlFooter = `\n</urlset>`;
-    
+
     let urls = '';
 
     // Add main pages

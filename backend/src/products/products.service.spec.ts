@@ -60,7 +60,7 @@ describe('ProductsService', () => {
       }),
       updateMany: jest.fn().mockResolvedValue({ nModified: 1 }),
       countDocuments: jest.fn().mockReturnValue({
-          exec: jest.fn().mockResolvedValue(0) // Returns object with exec
+        exec: jest.fn().mockResolvedValue(0), // Returns object with exec
       }),
       distinct: jest.fn().mockReturnValue({
         exec: jest.fn().mockResolvedValue([]),
@@ -108,7 +108,9 @@ describe('ProductsService', () => {
         populate: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue(null),
       });
-      await expect(service.findOne(new Types.ObjectId().toHexString())).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(new Types.ObjectId().toHexString())).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

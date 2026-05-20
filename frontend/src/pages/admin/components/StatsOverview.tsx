@@ -16,7 +16,6 @@ import {
   PhotoLibrary as ProductsWithImagesIcon,
   PhotoCameraOutlined as ProductsWithoutImagesIcon,
 } from "@mui/icons-material";
-import { useMemo } from "react";
 import { useTheme } from "@mui/material/styles";
 
 const STAT_VARIANTS = [

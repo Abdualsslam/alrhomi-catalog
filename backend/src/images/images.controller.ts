@@ -15,7 +15,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
   ApiConsumes,
   ApiBody,
@@ -39,7 +38,6 @@ import {
   DownloadUrlResponseDto,
   ImageListResponseDto,
   QueueStatusResponseDto,
-  RelatedImagesResponseDto,
   ToggleWatermarkResponseDto,
   UploadImageResponseDto,
 } from './dto/image-response.dto';
@@ -51,7 +49,7 @@ import {
 @ApiUnauthorizedResponse({ description: 'Missing or invalid JWT token' })
 @ApiForbiddenResponse({ description: 'Admin role required for selected endpoints' })
 export class ImagesController {
-  constructor(private readonly imagesService: ImagesService) { }
+  constructor(private readonly imagesService: ImagesService) {}
 
   @Post('upload')
   @UseInterceptors(
@@ -69,8 +67,14 @@ export class ImagesController {
         fileSize: 10 * 1024 * 1024, // 10MB
       },
       fileFilter: (req, file, cb) => {
-        if (!file.originalname.match(/\.(jpg|jpeg|png|webp)$/i) || !file.mimetype.match(/^image\/(jpeg|png|webp)$/i)) {
-          return cb(new BadRequestException('صيغة الملف غير مدعومة. فقط (JPG, PNG, WEBP) مسموحة.'), false);
+        if (
+          !file.originalname.match(/\.(jpg|jpeg|png|webp)$/i) ||
+          !file.mimetype.match(/^image\/(jpeg|png|webp)$/i)
+        ) {
+          return cb(
+            new BadRequestException('صيغة الملف غير مدعومة. فقط (JPG, PNG, WEBP) مسموحة.'),
+            false,
+          );
         }
         cb(null, true);
       },
@@ -99,7 +103,9 @@ export class ImagesController {
     if (!file) {
       throw new BadRequestException('لم يتم رفع ملف');
     }
-    console.log(`[${new Date().toISOString()}] Upload started: ${file.originalname} (${file.size} bytes)`);
+    console.log(
+      `[${new Date().toISOString()}] Upload started: ${file.originalname} (${file.size} bytes)`,
+    );
     try {
       const result = await this.imagesService.upload(file, uploadDto);
       console.log(
